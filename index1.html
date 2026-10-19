@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#02060d">
+<title>B.E.A · Assistente de Visão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #02060d;
+    --panel: rgba(8, 20, 40, 0.86);
+    --text: #f1f8ff;
+    --muted: #a9bdd3;
+    --accent: #7f93ab;
+  }
+
+  /* Cor de destaque muda conforme o estado do sistema */
+  body[data-state="off"]       { --accent: #7f93ab; }
+  body[data-state="listening"] { --accent: #00f2ff; }
+  body[data-state="thinking"]  { --accent: #ffb800; }
+  body[data-state="speaking"]  { --accent: #3dffa2; }
+  body[data-state="error"]     { --accent: #ff4d6d; }
+
+  body {
+    background: radial-gradient(circle at 50% 0%, #0b2142 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .hud {
+    width: 100%;
+    max-width: 460px;
+    background: var(--panel);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1.5px solid var(--accent);
+    border-radius: 26px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 0 34px -8px var(--accent), inset 0 0 18px -10px var(--accent);
+    transition: border-color .4s, box-shadow .4s;
+  }
+
+  /* ---------- Cabeçalho ---------- */
+  .header { text-align: center; }
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 800;
+    font-size: clamp(28px, 9vw, 38px);
+    letter-spacing: 10px;
+    padding-left: 10px; /* compensa o espaçamento da última letra */
+    color: var(--accent);
+    text-shadow: 0 0 16px var(--accent);
+    transition: color .4s;
+  }
+  .subtitle {
+    margin-top: 4px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- Vídeo ---------- */
+  .video-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: filter .4s;
+  }
+  body[data-state="thinking"] video { filter: brightness(.7) saturate(.8); }
+
+  /* Cantos estilo mira */
+  .corner { position: absolute; width: 26px; height: 26px; border: 3px solid var(--accent); transition: border-color .4s; }
+  .corner.tl { top: 10px; left: 10px;  border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
+  .corner.tr { top: 10px; right: 10px; border-left: 0;  border-bottom: 0; border-top-right-radius: 8px; }
+  .corner.bl { bottom: 10px; left: 10px;  border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
+  .corner.br { bottom: 10px; right: 10px; border-left: 0;  border-top: 0; border-bottom-right-radius: 8px; }
+
+  .tag {
+    position: absolute; top: 14px; left: 44px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px; letter-spacing: 2px;
+    background: rgba(0, 0, 0, .65);
+    padding: 4px 8px; border-radius: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tag i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: blink 1.4s infinite; }
+
+  /* Linha de varredura: aparece só quando está "pensando" */
+  .scan {
+    position: absolute; left: 0; right: 0; top: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 18px 6px var(--accent);
+    opacity: 0; pointer-events: none;
+  }
+  body[data-state="thinking"] .scan { opacity: 1; animation: scan 1.6s ease-in-out infinite; }
+
+  .thinking-label {
+    position: absolute; inset: auto 0 14px 0; text-align: center;
+    font-family: 'Orbitron', sans-serif; font-size: 14px; letter-spacing: 3px;
+    color: var(--accent); text-shadow: 0 0 10px #000;
+    opacity: 0;
+  }
+  body[data-state="thinking"] .thinking-label { opacity: 1; animation: blink 1s infinite; }
+
+  /* ---------- Indicador de estado (orbe) ---------- */
+  .indicator { display: flex; align-items: center; gap: 14px; }
+  .orb {
+    position: relative; flex: 0 0 64px; width: 64px; height: 64px;
+    display: grid; place-items: center;
+  }
+  .orb .core {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 16px var(--accent);
+    transition: background .4s;
+  }
+  .orb .ring {
+    position: absolute; inset: 6px; border-radius: 50%;
+    border: 2px solid var(--accent); opacity: 0;
+  }
+  .orb .bars { display: none; gap: 4px; align-items: center; height: 34px; }
+  .orb .bars i { width: 5px; height: 8px; border-radius: 3px; background: var(--accent); animation: eq .8s ease-in-out infinite; }
+  .orb .bars i:nth-child(2) { animation-delay: .15s; }
+  .orb .bars i:nth-child(3) { animation-delay: .30s; }
+  .orb .bars i:nth-child(4) { animation-delay: .10s; }
+  .orb .bars i:nth-child(5) { animation-delay: .25s; }
+
+  body[data-state="listening"] .ring { animation: ripple 1.8s ease-out infinite; }
+  body[data-state="listening"] .ring.r2 { animation-delay: .9s; }
+  body[data-state="listening"] .core { animation: breathe 1.8s ease-in-out infinite; }
+  body[data-state="thinking"] .ring.r1 {
+    opacity: 1; border-color: transparent; border-top-color: var(--accent); border-right-color: var(--accent);
+    animation: spin 0.9s linear infinite; inset: 2px;
+  }
+  body[data-state="speaking"] .core { display: none; }
+  body[data-state="speaking"] .bars { display: flex; }
+  body[data-state="error"] .core { animation: blink .7s infinite; }
+
+  #stateLabel { font-family: 'Orbitron', sans-serif; font-size: 14px; letter-spacing: 1.5px; color: var(--accent); line-height: 1.3; }
+
+  /* ---------- Caixa de status (toque para repetir) ---------- */
+  #status {
+    background: rgba(0, 0, 0, .55);
+    border-left: 5px solid var(--accent);
+    border-radius: 14px;
+    padding: 16px;
+    min-height: 96px;
+    font-size: 19px;
+    line-height: 1.45;
+    color: var(--text);
+    display: flex; align-items: center;
+    word-break: break-word;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color .4s;
+  }
+  #status:focus-visible, .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .hint { font-size: 13px; color: var(--muted); text-align: center; margin-top: -6px; }
+
+  /* ---------- Botões grandes ---------- */
+  .controls { display: flex; flex-direction: column; gap: 12px; }
+  .btn {
+    width: 100%; min-height: 68px;
+    border-radius: 18px; border: 2px solid var(--accent);
+    font-family: 'Orbitron', sans-serif; font-weight: 800;
+    font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase;
+    cursor: pointer; transition: transform .1s, background .3s, box-shadow .3s;
+    padding: 14px;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  .btn-main { background: linear-gradient(135deg, #00f2ff, #0a6bff); color: #021020; border-color: transparent; box-shadow: 0 0 22px rgba(0, 242, 255, .45); }
+  .btn-alt  { background: rgba(255, 255, 255, .06); color: var(--text); }
+  .btn-alt.armed { background: var(--accent); color: #021020; box-shadow: 0 0 22px var(--accent); }
+
+  /* ---------- Animações ---------- */
+  @keyframes blink   { 50% { opacity: .35; } }
+  @keyframes scan    { 0% { top: 0; } 50% { top: calc(100% - 3px); } 100% { top: 0; } }
+  @keyframes spin    { to { transform: rotate(360deg); } }
+  @keyframes ripple  { 0% { transform: scale(.5); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
+  @keyframes breathe { 50% { transform: scale(1.25); } }
+  @keyframes eq      { 0%, 100% { height: 8px; } 50% { height: 32px; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  }
+  @media (max-height: 640px) { .video-wrapper { aspect-ratio: 16 / 9; } }
+</style>
+</head>
+
+<body data-state="off">
+<main class="hud">
+
+  <header class="header">
+    <h1>B E A</h1>
+    <div class="subtitle">Assistente de visão · Acessibilidade</div>
+  </header>
+
+  <div class="video-wrapper">
+    <video id="video" autoplay playsinline muted></video>
+    <span class="corner tl"></span><span class="corner tr"></span>
+    <span class="corner bl"></span><span class="corner br"></span>
+    <div class="tag"><i></i>VISÃO</div>
+    <div class="scan"></div>
+    <div class="thinking-label">ANALISANDO…</div>
+  </div>
+
+  <div class="indicator" aria-hidden="true">
+    <div class="orb">
+      <span class="ring r1"></span><span class="ring r2"></span>
+      <span class="core"></span>
+      <span class="bars"><i></i><i></i><i></i><i></i><i></i></span>
+    </div>
+    <div id="stateLabel">Sistema desligado</div>
+  </div>
+
+  <div id="status" role="button" tabindex="0" aria-live="polite" title="Toque para ouvir de novo">
+    Toque em “Iniciar sistema” para começar.
+  </div>
+  <div class="hint" id="hint" hidden>Toque na caixa acima para ouvir a última resposta de novo.</div>
+
+  <div class="controls">
+    <button id="startSystem" class="btn btn-main">🚀 Iniciar sistema B.E.A.</button>
+    <div id="actions" class="controls" hidden>
+      <button id="btnTalk" class="btn btn-alt">🎤 Falar com a BEA</button>
+      <button id="btnDescribe" class="btn btn-alt">👁️ Descrever o que vejo</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ================= CONFIGURAÇÃO ================= */
+  const CONFIG = {
+    imageMaxSide: 1024,              // maior lado da foto enviada (px)
+    imageQuality: 0.75,              // qualidade JPEG (0 a 1)
+    apiTimeoutMs: 45000,
+    armedSeconds: 10                 // tempo de escuta após tocar em "Falar com a BEA"
+  };
+  const SYSTEM_PROMPT =
+    "Você é a BEA, assistente de voz feminina estilo JARVIS para óculos de acessibilidade. " +
+    "Responda de forma extremamente curta, direta e natural em Português do Brasil para leitura em voz alta.";
+  const WAKE_ONE = /\b(bia|bea|via)\b/;
+  const WAKE_ALL = /\b(bia|bea|via)\b/g;
+
+  /* ================= ELEMENTOS ================= */
+  const $ = (id) => document.getElementById(id);
+  const video = $("video"), statusEl = $("status"), stateLabel = $("stateLabel");
+  const startBtn = $("startSystem"), actions = $("actions"), hint = $("hint");
+  const btnTalk = $("btnTalk"), btnDescribe = $("btnDescribe");
+
+  /* ================= ESTADO ================= */
+  let stream = null, recognition = null, wakeLock = null;
+  let systemOn = false;       // sistema iniciado
+  let busy = false;           // processando ou falando (microfone fica desligado)
+  let micBlocked = false;     // permissão de microfone negada
+  let armed = false, armTimer = null;
+  let restartTimer = null;
+  let lastAnswer = "Sistemas online. Chame por Bia.";
+
+  function setState(state, label) {
+    document.body.dataset.state = state;
+    stateLabel.textContent = label;
+  }
+  function showStatus(text) { statusEl.textContent = text; }
+  function buzz(pattern) { try { navigator.vibrate && navigator.vibrate(pattern); } catch (e) {} }
+
+  /* ================= VOZ (TEXT-TO-SPEECH) ================= */
+  const hasTTS = "speechSynthesis" in window;
+  let voices = [];
+  let speakToken = 0, keepAlive = null, watchdog = null;
+
+  function loadVoices() { voices = window.speechSynthesis.getVoices() || []; }
+  if (hasTTS) { loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
+
+  function pickVoice() {
+    const portuguese = voices.filter((v) => /^pt(?:[-_]|$)/i.test(v.lang));
+    const score = (v) => {
+      let value = /pt[-_]br/i.test(v.lang) ? 100 : 0;
+      if (/natural|neural|online|premium/i.test(v.name)) value += 50;
+      if (/francisca|luciana|female|feminina/i.test(v.name)) value += 30;
+      if (/google/i.test(v.name)) value += 20;
+      if (/microsoft/i.test(v.name)) value += 15;
+      if (!v.localService) value += 5;
+      return value;
+    };
+    return portuguese.sort((a, b) => score(b) - score(a))[0] || null;
+  }
+
+  // Quebra textos longos em frases (evita o corte de fala após ~15s no Chrome)
+  function chunkText(text) {
+    const parts = text.match(/[^.!?\n]+[.!?]*/g) || [text];
+    const out = []; let cur = "";
+    for (const p of parts) {
+      if ((cur + p).length > 160 && cur) { out.push(cur.trim()); cur = p; } else { cur += p; }
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+  }
+
+  // "Fala fantasma": precisa rodar dentro de um toque do usuário para liberar o áudio no Android
+  function unlockAudio() {
+    if (!hasTTS) return;
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
+      const ghost = new SpeechSynthesisUtterance(".");
+      ghost.volume = 0;
+      ghost.lang = "pt-BR";
+      window.speechSynthesis.speak(ghost);
+    } catch (e) {}
+  }
+
+  function stopSpeaking() {
+    speakToken++;
+    clearInterval(keepAlive); clearTimeout(watchdog);
+    if (hasTTS) window.speechSynthesis.cancel();
+  }
+
+  // Fala o texto e, ao terminar, volta a escutar
+  function speak(text) {
+    return new Promise((resolve) => {
+      lastAnswer = text;
+      showStatus("BEA: " + text);
+      busy = true;
+      stopRecognition();
+      stopSpeaking();
+      const token = speakToken;
+
+      const done = () => {
+        if (token !== speakToken) return;
+        clearInterval(keepAlive); clearTimeout(watchdog);
+        resumeListening();
+        resolve();
+      };
+
+      if (!hasTTS) { setTimeout(done, 300); return; }
+
+      setState("speaking", "Falando…");
+      const chunks = chunkText(text);
+      let i = 0, started = false;
+
+      const next = () => {
+        if (token !== speakToken) return;
+        if (i >= chunks.length) { done(); return; }
+        const u = new SpeechSynthesisUtterance(chunks[i++]);
+        u.lang = "pt-BR";
+        u.rate = 0.96;
+        u.pitch = 1;
+        const v = pickVoice();
+        if (v) u.voice = v;
+        u.onstart = () => { started = true; };
+        u.onend = next;
+        u.onerror = (e) => {
+          if (e.error === "canceled" || e.error === "interrupted") return;
+          next();
+        };
+        window.speechSynthesis.resume();
+        window.speechSynthesis.speak(u);
+      };
+
+      // Pequena pausa após cancel(): sem ela o Chrome do Android costuma "engolir" a fala
+      setTimeout(next, 150);
+
+      // Mantém a síntese viva em falas longas
+      keepAlive = setInterval(() => {
+        if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
+      }, 5000);
+
+      // Se a voz não começar em 4s, segue o fluxo mostrando só o texto
+      watchdog = setTimeout(() => {
+        if (!started) {
+          window.speechSynthesis.cancel();
+          showStatus("BEA: " + text + "\n\n(Sem áudio? Confira o volume de mídia e toque aqui.)");
+          done();
+        }
+      }, 4000);
+    });
+  }
+
+  // Toque na caixa de status = repete a última resposta
+  function repeatLast() { if (!systemOn) return; speak(lastAnswer); }
+  statusEl.addEventListener("click", repeatLast);
+  statusEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); repeatLast(); }
+  });
+
+  /* ================= RECONHECIMENTO DE VOZ ================= */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function arm(seconds) {
+    armed = true;
+    btnTalk.classList.add("armed");
+    clearTimeout(armTimer);
+    armTimer = setTimeout(disarm, seconds * 1000);
+  }
+  function disarm() {
+    armed = false;
+    btnTalk.classList.remove("armed");
+    clearTimeout(armTimer);
+    if (systemOn && !busy && !micBlocked) setState("listening", "Ouvindo… diga “Bia”");
+  }
+
+  function buildRecognition() {
+    recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "pt-BR";
+
+    recognition.onstart = () => {
+      if (busy) return;
+      setState("listening", armed ? "Pode falar…" : "Ouvindo… diga “Bia”");
+    };
+
+    recognition.onresult = (event) => {
+      if (busy) return;
+      const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+      let command = null;
+      if (WAKE_ONE.test(transcript)) {
+        command = transcript.replace(WAKE_ALL, "").replace(/^[\s,.:;!?-]+/, "").trim();
+      } else if (armed) {
+        command = transcript;
+      } else {
+        return; // sem palavra de ativação: ignora
+      }
+
+      if (!command) {
+        arm(CONFIG.armedSeconds + 3);
+        speak("Estou ouvindo. O que deseja?");
+      } else {
+        disarm();
+        processCommand(command);
+      }
+    };
+
+    recognition.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        micBlocked = true;
+        fail("Microfone bloqueado. Permita o acesso ao microfone nas configurações do navegador e recarregue a página.");
+      } else if (e.error === "audio-capture") {
+        micBlocked = true;
+        fail("Não encontrei nenhum microfone neste aparelho.");
+      } else if (e.error === "network") {
+        showStatus("O reconhecimento de voz perdeu a internet. Tentando de novo…");
+      }
+      // "no-speech" e "aborted" são normais: o onend reinicia
+    };
+
+    recognition.onend = () => scheduleRestart();
+  }
+
+  function startRecognition() {
+    if (!SR) {
+      setState("error", "Sem reconhecimento de voz");
+      showStatus("Este navegador não tem reconhecimento de voz. Use o Google Chrome no Android.");
+      return;
+    }
+    if (!recognition) buildRecognition();
+    try { recognition.start(); } catch (e) { /* já estava ativo */ }
+  }
+
+  // abort() solta o microfone na hora (stop() demora e atrapalha a fala)
+  function stopRecognition() {
+    clearTimeout(restartTimer);
+    if (recognition) { try { recognition.abort(); } catch (e) {} }
+  }
+
+  function scheduleRestart() {
+    if (!systemOn || busy || micBlocked) return;
+    clearTimeout(restartTimer);
+    restartTimer = setTimeout(() => {
+      if (systemOn && !busy && !micBlocked) startRecognition();
+    }, 400);
+  }
+
+  function resumeListening() {
+    busy = false;
+    if (!systemOn) return;
+    if (micBlocked) { setState("error", "Microfone bloqueado"); return; }
+    setState("listening", armed ? "Pode falar…" : "Ouvindo… diga “Bia”");
+    startRecognition();
+  }
+
+  // Erro: vibra, mostra em vermelho e avisa por voz
+  function fail(message) {
+    buzz([120, 80, 120]);
+    setState("error", "Atenção");
+    return speak(message);
+  }
+
+  /* ================= CÂMERA ================= */
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showStatus("Câmera indisponível: abra esta página por HTTPS ou localhost.");
+      return false;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+      return true;
+    } catch (e) {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+        stream = null;
+        video.srcObject = null;
+      }
+      const msgs = {
+        NotAllowedError: "A câmera foi bloqueada. Permita o acesso à câmera e recarregue a página.",
+        NotFoundError: "Não encontrei nenhuma câmera neste aparelho.",
+        NotReadableError: "A câmera está sendo usada por outro aplicativo. Feche-o e tente de novo."
+      };
+      showStatus("Erro na câmera: " + (msgs[e.name] || e.message));
+      return false;
+    }
+  }
+
+  // Foto reduzida: mantém boa qualidade sem pesar na rede
+  function takePhoto() {
+    if (!stream || !video.videoWidth) return null;
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const scale = Math.min(1, CONFIG.imageMaxSide / Math.max(vw, vh));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(vw * scale);
+    canvas.height = Math.round(vh * scale);
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", CONFIG.imageQuality);
+  }
+
+  /* ================= API (lógica original) ================= */
+  async function processCommand(question) {
+    if (busy) return;
+    busy = true;
+    stopRecognition();
+    buzz(60);
+    setState("thinking", "Pensando…");
+    showStatus("Analisando a imagem… Pergunta: “" + question + "”");
+
+    let photo;
+    try {
+      photo = takePhoto();
+    } catch {
+      await fail("Não consegui capturar uma imagem. Verifique a câmera e tente novamente.");
+      return;
+    }
+    if (!photo) {
+      await fail("Não consegui capturar uma imagem. Verifique a câmera e tente novamente.");
+      return;
+    }
+
+    if (!navigator.onLine) {
+      await fail("Estou sem internet. Verifique a conexão do celular.");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CONFIG.apiTimeoutMs);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: question },
+                ...(photo ? [{ type: "image_url", image_url: { url: photo } }] : [])
+              ]
+            }
+          ]
+        })
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error("Resposta inválida do servidor.");
+      }
+      if (!response.ok) {
+        const err = new Error("Falha na solicitação à API.");
+        err.status = response.status;
+        throw err;
+      }
+
+      const answer = data && data.choices && data.choices[0] &&
+        data.choices[0].message && data.choices[0].message.content;
+      if (typeof answer !== "string" || !answer.trim()) {
+        throw new Error("A resposta do servidor não contém texto.");
+      }
+      buzz([40, 40, 40]);
+      await speak(answer);
+
+    } catch (error) {
+      let msg = "Erro de conexão com o servidor.";
+      if (error.name === "AbortError") msg = "A resposta demorou demais. Tente de novo.";
+      else if (error.status === 401 || error.status === 403) msg = "A chave de acesso da inteligência artificial é inválida.";
+      else if (error.status === 402) msg = "Os créditos da inteligência artificial acabaram.";
+      else if (error.status === 429) msg = "Muitos pedidos seguidos. Aguarde um instante e tente de novo.";
+      else if (error.status === 503) msg = "A integração de IA não está configurada no servidor.";
+      else if (error.status === 413) msg = "A imagem enviada é muito grande. Tente novamente.";
+      else if (error.status === 502 || error.status === 504) msg = "A API de IA está indisponível. Tente novamente.";
+      else if (error instanceof TypeError) msg = "Perdi a conexão com a internet.";
+      await fail(msg);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /* ================= TELA SEMPRE LIGADA ================= */
+  async function keepAwake() {
+    try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && systemOn) keepAwake();
+  });
+  window.addEventListener("pagehide", () => {
+    systemOn = false;
+    clearTimeout(restartTimer);
+    clearTimeout(armTimer);
+    if (recognition) {
+      try { recognition.abort(); } catch (e) {}
+    }
+    if (stream) stream.getTracks().forEach((track) => track.stop());
+    video.srcObject = null;
+    stopSpeaking();
+  });
+
+  /* ================= BOTÕES ================= */
+  startBtn.addEventListener("click", async () => {
+    startBtn.disabled = true;
+    unlockAudio(); // precisa acontecer dentro do toque do usuário
+    setState("thinking", "Ativando…");
+    showStatus("Ativando câmera e microfone. Aceite as permissões se o celular pedir.");
+    systemOn = true;
+
+    const cameraOk = await startCamera();
+    keepAwake();
+
+    startBtn.hidden = true;
+    actions.hidden = false;
+    hint.hidden = false;
+
+    if (cameraOk) {
+      await speak("Olá! Sou a BEA, mas pode me chamar de Bia. Diga 'Bia' para começar.");
+    } else {
+      await speak("Olá! Eu sou a BEA, mas pode me chamar de Bia. Estou sem câmera. Verifique as permissões.");
+    }
+  });
+
+  btnTalk.addEventListener("click", () => {
+    if (!systemOn) return;
+    stopSpeaking();           // interrompe a fala, se houver
+    busy = false;
+    arm(CONFIG.armedSeconds);
+    buzz(40);
+    resumeListening();
+  });
+
+  btnDescribe.addEventListener("click", () => {
+    if (!systemOn || busy) return;
+    processCommand("Descreva de forma curta o que você vê à minha frente.");
+  });
+})();
+</script>
+</body>
+</html>
