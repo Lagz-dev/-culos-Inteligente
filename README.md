@@ -32,6 +32,21 @@ Para executar os testes locais do backend:
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
+## Hospedagem gratuita no Render
+
+1. Envie o projeto para o GitHub, incluindo `app.py`, `index1.html`, `requirements.txt` e os demais arquivos necessários. Não envie `.env`.
+2. No Render, crie um **Web Service** conectado ao repositório.
+3. Configure:
+   - **Runtime:** Python
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `gunicorn app:app --bind 0.0.0.0:$PORT`
+4. Em **Environment Variables**, configure `OPENROUTER_API_KEY` com uma chave válida. Opcionalmente, configure `OPENROUTER_MODEL` com um modelo compatível com imagens.
+5. Implante o serviço e abra a URL HTTPS fornecida pelo Render.
+
+O comando `gunicorn app:app` carrega a aplicação WSGI `app` definida em `app.py`; o comando de inicialização acima também vincula o servidor ao host e à porta exigidos pelo Render. A rota `/` serve `index1.html`.
+
+O plano gratuito pode suspender serviços inativos e ter limites de uso. Câmera e microfone dependem da permissão do navegador e de acesso HTTPS; reconhecimento de voz e vozes disponíveis variam conforme o navegador e o dispositivo.
+
 ## Segurança
 
 - `.env` e ambientes virtuais são ignorados pelo Git.
