@@ -296,33 +296,102 @@
   /* ================= VOZ (TEXT-TO-SPEECH) ================= */
   const hasTTS = "speechSynthesis" in window;
   let voices = [];
-  let speakToken = 0, keepAlive = null, watchdog = null;
+  let speakToken = 0, keepAlive = null, watchdog = null, speechStartTimer = null;
+  let activeSpeechResolve = null;
 
   function loadVoices() { voices = window.speechSynthesis.getVoices() || []; }
-  if (hasTTS) { loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
+  if (hasTTS) {
+    loadVoices();
+    if (typeof window.speechSynthesis.addEventListener === "function") {
+      window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+    } else {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }
+
+  const FEMALE_VOICE = /francisca|luciana|maria|camila|bruna|fernanda|joana|female|feminina|woman/i;
+  const MALE_VOICE = /(^|[\s_-])(male|masculino|man)([\s_-]|$)/i;
+
+  function waitForVoices() {
+    loadVoices();
+    if (voices.length) return Promise.resolve(voices);
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let fallbackHandler = null;
+      const previousHandler = window.speechSynthesis.onvoiceschanged;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (typeof window.speechSynthesis.removeEventListener === "function") {
+          window.speechSynthesis.removeEventListener("voiceschanged", finish);
+        } else if (window.speechSynthesis.onvoiceschanged === fallbackHandler) {
+          window.speechSynthesis.onvoiceschanged = previousHandler || null;
+        }
+        loadVoices();
+        resolve(voices);
+      };
+      const timer = setTimeout(finish, 1200);
+      if (typeof window.speechSynthesis.addEventListener === "function") {
+        window.speechSynthesis.addEventListener("voiceschanged", finish);
+      } else {
+        fallbackHandler = () => {
+          if (typeof previousHandler === "function") previousHandler.call(window.speechSynthesis);
+          finish();
+        };
+        window.speechSynthesis.onvoiceschanged = fallbackHandler;
+      }
+    });
+  }
 
   function pickVoice() {
-    const portuguese = voices.filter((v) => /^pt(?:[-_]|$)/i.test(v.lang));
+    const brazilianPortuguese = voices.filter((v) => /^pt[-_]br$/i.test(v.lang));
+    const portuguese = brazilianPortuguese.length
+      ? brazilianPortuguese
+      : voices.filter((v) => /^pt(?:[-_]|$)/i.test(v.lang));
     const score = (v) => {
-      let value = /pt[-_]br/i.test(v.lang) ? 100 : 0;
-      if (/natural|neural|online|premium/i.test(v.name)) value += 50;
-      if (/francisca|luciana|female|feminina/i.test(v.name)) value += 30;
-      if (/google/i.test(v.name)) value += 20;
-      if (/microsoft/i.test(v.name)) value += 15;
-      if (!v.localService) value += 5;
+      let value = FEMALE_VOICE.test(v.name) ? 500 : 0;
+      if (MALE_VOICE.test(v.name)) value -= 500;
+      if (/natural|neural|online|premium/i.test(v.name)) value += 100;
+      if (!v.localService) value += 15;
+      if (/google|microsoft/i.test(v.name)) value += 10;
       return value;
     };
     return portuguese.sort((a, b) => score(b) - score(a))[0] || null;
   }
 
-  // Quebra textos longos em frases (evita o corte de fala após ~15s no Chrome)
+  // Mantém as frases juntas para aproveitar a prosódia natural do navegador.
   function chunkText(text) {
-    const parts = text.match(/[^.!?\n]+[.!?]*/g) || [text];
-    const out = []; let cur = "";
-    for (const p of parts) {
-      if ((cur + p).length > 160 && cur) { out.push(cur.trim()); cur = p; } else { cur += p; }
+    const parts = text.match(/[^.!?…\n]+[.!?…]*|\n+/g) || [text];
+    const out = [];
+    let current = "";
+    for (const part of parts) {
+      const sentence = part.trim();
+      if (!sentence) {
+        if (current) { out.push(current); current = ""; }
+        continue;
+      }
+      if (sentence.length > 220) {
+        if (current) { out.push(current); current = ""; }
+        let fragment = "";
+        for (const word of sentence.split(/\s+/)) {
+          if (fragment && (fragment + " " + word).length > 180) {
+            out.push(fragment);
+            fragment = word;
+          } else {
+            fragment += (fragment ? " " : "") + word;
+          }
+        }
+        if (fragment) out.push(fragment);
+      } else if (current && (current + " " + sentence).length > 220) {
+        out.push(current);
+        current = sentence;
+      } else {
+        current += (current ? " " : "") + sentence;
+      }
     }
-    if (cur.trim()) out.push(cur.trim());
+    if (current) out.push(current);
     return out;
   }
 
@@ -342,7 +411,13 @@
   function stopSpeaking() {
     speakToken++;
     clearInterval(keepAlive); clearTimeout(watchdog);
+    clearTimeout(speechStartTimer);
     if (hasTTS) window.speechSynthesis.cancel();
+    if (activeSpeechResolve) {
+      const resolve = activeSpeechResolve;
+      activeSpeechResolve = null;
+      resolve();
+    }
   }
 
   // Fala o texto e, ao terminar, volta a escutar
@@ -358,11 +433,14 @@
       const done = () => {
         if (token !== speakToken) return;
         clearInterval(keepAlive); clearTimeout(watchdog);
+        clearTimeout(speechStartTimer);
+        if (activeSpeechResolve === resolve) activeSpeechResolve = null;
         resumeListening();
         resolve();
       };
 
-      if (!hasTTS) { setTimeout(done, 300); return; }
+      activeSpeechResolve = resolve;
+      if (!hasTTS) { speechStartTimer = setTimeout(done, 300); return; }
 
       setState("speaking", "Falando…");
       const chunks = chunkText(text);
@@ -374,35 +452,46 @@
         const u = new SpeechSynthesisUtterance(chunks[i++]);
         u.lang = "pt-BR";
         u.rate = 0.96;
-        u.pitch = 1;
+        u.pitch = 1.03;
+        u.volume = 1;
         const v = pickVoice();
-        if (v) u.voice = v;
+        if (v) {
+          u.voice = v;
+        }
         u.onstart = () => { started = true; };
-        u.onend = next;
+        u.onend = () => {
+          if (token !== speakToken) return;
+          if (i >= chunks.length) {
+            done();
+            return;
+          }
+          const pause = /[,;:]$/.test(chunks[i - 1]) ? 120 : 180;
+          speechStartTimer = setTimeout(next, pause);
+        };
         u.onerror = (e) => {
-          if (e.error === "canceled" || e.error === "interrupted") return;
+          if (token !== speakToken) return;
+          if (e.error === "canceled" || e.error === "interrupted") { done(); return; }
           next();
         };
         window.speechSynthesis.resume();
         window.speechSynthesis.speak(u);
       };
 
-      // Pequena pausa após cancel(): sem ela o Chrome do Android costuma "engolir" a fala
-      setTimeout(next, 150);
-
-      // Mantém a síntese viva em falas longas
-      keepAlive = setInterval(() => {
-        if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
-      }, 5000);
-
-      // Se a voz não começar em 4s, segue o fluxo mostrando só o texto
-      watchdog = setTimeout(() => {
-        if (!started) {
-          window.speechSynthesis.cancel();
-          showStatus("BEA: " + text + "\n\n(Sem áudio? Confira o volume de mídia e toque aqui.)");
-          done();
-        }
-      }, 4000);
+      waitForVoices().then(() => {
+        if (token !== speakToken) return;
+        if (!chunks.length) { done(); return; }
+        speechStartTimer = setTimeout(next, 100);
+        keepAlive = setInterval(() => {
+          if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
+        }, 5000);
+        watchdog = setTimeout(() => {
+          if (!started && token === speakToken) {
+            window.speechSynthesis.cancel();
+            showStatus("BEA: " + text + "\n\n(Sem áudio? Confira o volume de mídia e toque aqui.)");
+            done();
+          }
+        }, 8000);
+      });
     });
   }
 
