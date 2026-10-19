@@ -7,6 +7,8 @@ import app as app_module
 
 class ChatRouteTests(unittest.TestCase):
     def setUp(self):
+        with app_module.chat_requests_lock:
+            app_module.chat_requests.clear()
         self.environment = patch.dict(
             os.environ,
             {
@@ -25,8 +27,31 @@ class ChatRouteTests(unittest.TestCase):
         response = self.client.get("/api/health")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json, {"status": "ok", "api_configured": True})
+        self.assertEqual(response.json["status"], "ok")
+        self.assertTrue(response.json["api_configured"])
+        self.assertTrue(response.json["model_configured"])
+        self.assertEqual(response.json["model"], "test/vision-model")
         self.assertNotIn(b"test-only-placeholder", response.data)
+
+    def test_health_reports_missing_api_configuration(self):
+        with patch.dict(
+            os.environ,
+            {"OPENROUTER_API_KEY": "", "OPENROUTER_MODEL": ""},
+        ):
+            response = self.client.get("/api/health")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["status"], "ok")
+        self.assertFalse(response.json["api_configured"])
+        self.assertFalse(response.json["model_configured"])
+        self.assertIsNone(response.json["model"])
+
+    def test_home_serves_index_html(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"<title>B.E.A", response.data)
+        response.close()
 
     def test_chat_sends_configured_model_and_returns_answer(self):
         upstream = Mock()
@@ -58,6 +83,7 @@ class ChatRouteTests(unittest.TestCase):
         )
         self.assertEqual(post.call_args.kwargs["json"]["model"], "test/vision-model")
         self.assertEqual(post.call_args.kwargs["json"]["messages"], messages)
+        self.assertTrue(post.call_args.kwargs["headers"]["HTTP-Referer"].startswith("http"))
         self.assertEqual(
             post.call_args.kwargs["headers"]["Authorization"],
             f"Bearer {os.environ['OPENROUTER_API_KEY']}",
@@ -68,6 +94,7 @@ class ChatRouteTests(unittest.TestCase):
             response = self.client.post("/api/chat", json={"messages": []})
 
         self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json["code"], "api_key_missing")
         self.assertIn("não está configurada", response.json["error"])
 
     def test_invalid_role_returns_bad_request(self):
@@ -109,7 +136,50 @@ class ChatRouteTests(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.json["code"], "provider_rate_limited")
         self.assertNotIn(b"sensitive upstream details", response.data)
+
+    def test_unknown_model_is_reported_as_provider_model_error(self):
+        upstream = Mock(ok=False, status_code=404)
+
+        with patch("app.requests.post", return_value=upstream):
+            response = self.client.post(
+                "/api/chat",
+                json={"messages": [{"role": "user", "content": "Olá"}]},
+            )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.json["code"], "provider_model_not_found")
+        self.assertIn("OPENROUTER_MODEL", response.json["error"])
+
+    def test_provider_authentication_and_credits_have_distinct_errors(self):
+        for upstream_status, expected_code in (
+            (401, "provider_authentication"),
+            (402, "provider_credits"),
+            (503, "provider_unavailable"),
+        ):
+            with self.subTest(status=upstream_status):
+                upstream = Mock(ok=False, status_code=upstream_status)
+                with patch("app.requests.post", return_value=upstream):
+                    response = self.client.post(
+                        "/api/chat",
+                        json={"messages": [{"role": "user", "content": "Olá"}]},
+                    )
+                self.assertEqual(response.json["code"], expected_code)
+
+    def test_text_only_chat_is_forwarded(self):
+        upstream = Mock()
+        upstream.ok = True
+        upstream.json.return_value = {
+            "choices": [{"message": {"content": "Resposta de texto."}}]
+        }
+        messages = [{"role": "user", "content": "Responda sem imagem."}]
+
+        with patch("app.requests.post", return_value=upstream) as post:
+            response = self.client.post("/api/chat", json={"messages": messages})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(post.call_args.kwargs["json"]["messages"], messages)
 
     def test_upstream_timeout_returns_gateway_timeout(self):
         with patch("app.requests.post", side_effect=app_module.requests.Timeout):
@@ -119,6 +189,39 @@ class ChatRouteTests(unittest.TestCase):
             )
 
         self.assertEqual(response.status_code, 504)
+        self.assertEqual(response.json["code"], "provider_timeout")
+
+    def test_provider_connection_error_is_reported_separately(self):
+        with patch(
+            "app.requests.post",
+            side_effect=app_module.requests.ConnectionError("upstream unavailable"),
+        ):
+            response = self.client.post(
+                "/api/chat",
+                json={"messages": [{"role": "user", "content": "Olá"}]},
+            )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.json["code"], "provider_unavailable")
+
+    def test_chat_rate_limit_protects_provider_usage(self):
+        upstream = Mock()
+        upstream.ok = True
+        upstream.json.return_value = {
+            "choices": [{"message": {"content": "Resposta."}}]
+        }
+
+        with patch.object(app_module, "CHAT_RATE_LIMIT", 1), patch(
+            "app.requests.post", return_value=upstream
+        ) as post:
+            payload = {"messages": [{"role": "user", "content": "Olá"}]}
+            first = self.client.post("/api/chat", json=payload)
+            second = self.client.post("/api/chat", json=payload)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
+        self.assertEqual(second.json["code"], "request_rate_limited")
+        self.assertEqual(post.call_count, 1)
 
 
 if __name__ == "__main__":

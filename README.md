@@ -20,7 +20,7 @@ notepad .env
 .\.venv\Scripts\python.exe app.py
 ```
 
-No arquivo `.env`, substitua `replace-with-your-openrouter-api-key` pela chave nova da OpenRouter. Opcionalmente, altere `OPENROUTER_MODEL` para outro modelo compatível com entrada de imagens. Nunca coloque a chave no HTML, no JavaScript ou em arquivos versionados.
+No arquivo `.env`, substitua `replace-with-your-openrouter-api-key` pela chave nova da OpenRouter. O modelo padrão é `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`; altere `OPENROUTER_MODEL` somente para um ID existente que aceite imagens. Nunca coloque a chave no HTML, no JavaScript ou em arquivos versionados.
 
 Abra `http://127.0.0.1:5000` no Chrome. O localhost permite acesso à câmera em navegadores compatíveis; aceite as permissões de câmera e microfone. O reconhecimento de voz pode depender da internet e do suporte do navegador.
 
@@ -39,13 +39,13 @@ Para executar os testes locais do backend:
 3. Configure:
    - **Runtime:** Python
    - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn app:app --bind 0.0.0.0:$PORT`
-4. Em **Environment Variables**, configure `OPENROUTER_API_KEY` com uma chave válida. Opcionalmente, configure `OPENROUTER_MODEL` com um modelo compatível com imagens.
+   - **Start Command:** `gunicorn app:app --bind 0.0.0.0:$PORT --timeout 60`
+4. Em **Environment Variables**, configure `OPENROUTER_API_KEY` com uma chave válida e `OPENROUTER_MODEL` como `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` (ou outro ID existente que aceite imagens). O nome antigo `nvidia/nemotron-3-nano-omni:free` não está no catálogo público consultado; atualize a variável no Render, pois o backend não troca automaticamente um modelo configurado que seja inválido.
 5. Implante o serviço e abra a URL HTTPS fornecida pelo Render.
 
-O comando `gunicorn app:app` carrega a aplicação WSGI `app` definida em `app.py`; o comando de inicialização acima também vincula o servidor ao host e à porta exigidos pelo Render. A rota `/` serve `index1.html`.
+O comando `gunicorn app:app` carrega a aplicação WSGI `app` definida em `app.py`; o comando de inicialização acima também vincula o servidor ao host e à porta exigidos pelo Render. O timeout de 60 segundos permite concluir chamadas de IA que podem levar até 50 segundos. A rota `/` serve `index1.html`.
 
-O plano gratuito pode suspender serviços inativos e ter limites de uso. Câmera e microfone dependem da permissão do navegador e de acesso HTTPS; reconhecimento de voz e vozes disponíveis variam conforme o navegador e o dispositivo.
+O plano gratuito pode suspender serviços inativos e ter limites de uso. Câmera e microfone dependem da permissão do navegador e de acesso HTTPS; reconhecimento de voz e vozes disponíveis variam conforme o navegador e o dispositivo. A rota de chat limita cada IP a 10 solicitações por minuto por processo do Gunicorn; esse limite em memória é local a cada processo e não substitui controles de uso da conta/provedor.
 
 ## Segurança
 

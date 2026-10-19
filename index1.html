@@ -262,7 +262,7 @@
   const CONFIG = {
     imageMaxSide: 1024,              // maior lado da foto enviada (px)
     imageQuality: 0.75,              // qualidade JPEG (0 a 1)
-    apiTimeoutMs: 45000,
+    apiTimeoutMs: 55000,
     armedSeconds: 10                 // tempo de escuta após tocar em "Falar com a BEA"
   };
   const SYSTEM_PROMPT =
@@ -650,24 +650,28 @@
   }
 
   /* ================= API (lógica original) ================= */
-  async function processCommand(question) {
+  async function processCommand(question, requireImage = false) {
     if (busy) return;
     busy = true;
     stopRecognition();
     buzz(60);
     setState("thinking", "Pensando…");
-    showStatus("Analisando a imagem… Pergunta: “" + question + "”");
+    showStatus("Preparando a solicitação… Pergunta: “" + question + "”");
 
     let photo;
     try {
       photo = takePhoto();
     } catch {
+      photo = null;
+    }
+    if (!photo && requireImage) {
       await fail("Não consegui capturar uma imagem. Verifique a câmera e tente novamente.");
       return;
     }
     if (!photo) {
-      await fail("Não consegui capturar uma imagem. Verifique a câmera e tente novamente.");
-      return;
+      showStatus("Enviando pergunta sem imagem… Pergunta: “" + question + "”");
+    } else {
+      showStatus("Analisando a imagem… Pergunta: “" + question + "”");
     }
 
     if (!navigator.onLine) {
@@ -697,36 +701,60 @@
         })
       });
 
+      const responseText = await response.text();
       let data;
       try {
-        data = await response.json();
+        data = JSON.parse(responseText);
       } catch {
-        throw new Error("Resposta inválida do servidor.");
+        const error = new Error("O servidor respondeu em um formato inesperado.");
+        error.status = response.status;
+        error.code = "invalid_server_response";
+        throw error;
       }
       if (!response.ok) {
-        const err = new Error("Falha na solicitação à API.");
-        err.status = response.status;
-        throw err;
+        const error = new Error(
+          typeof data.error === "string" ? data.error : "O servidor recusou a solicitação."
+        );
+        error.status = response.status;
+        error.code = typeof data.code === "string" ? data.code : "http_error";
+        throw error;
       }
 
       const answer = data && data.choices && data.choices[0] &&
         data.choices[0].message && data.choices[0].message.content;
       if (typeof answer !== "string" || !answer.trim()) {
-        throw new Error("A resposta do servidor não contém texto.");
+        const error = new Error("A resposta do servidor não contém texto.");
+        error.status = response.status;
+        error.code = "invalid_server_response";
+        throw error;
       }
       buzz([40, 40, 40]);
       await speak(answer);
 
     } catch (error) {
-      let msg = "Erro de conexão com o servidor.";
-      if (error.name === "AbortError") msg = "A resposta demorou demais. Tente de novo.";
-      else if (error.status === 401 || error.status === 403) msg = "A chave de acesso da inteligência artificial é inválida.";
-      else if (error.status === 402) msg = "Os créditos da inteligência artificial acabaram.";
-      else if (error.status === 429) msg = "Muitos pedidos seguidos. Aguarde um instante e tente de novo.";
-      else if (error.status === 503) msg = "A integração de IA não está configurada no servidor.";
-      else if (error.status === 413) msg = "A imagem enviada é muito grande. Tente novamente.";
-      else if (error.status === 502 || error.status === 504) msg = "A API de IA está indisponível. Tente novamente.";
-      else if (error instanceof TypeError) msg = "Perdi a conexão com a internet.";
+      const code = error.code || "network_error";
+      console.warn("Falha na solicitação B.E.A.", {
+        status: error.status || null,
+        code,
+        name: error.name || "Error"
+      });
+      let msg = "Ocorreu um erro inesperado. Tente novamente.";
+      if (error.name === "AbortError") msg = "A solicitação demorou demais. Tente novamente.";
+      else if (error instanceof TypeError) msg = "Não consegui alcançar o servidor da B.E.A. Verifique se o site está disponível e tente novamente.";
+      else if (code === "api_key_missing") msg = "A integração de IA não está configurada no servidor.";
+      else if (code === "model_configuration_error") msg = "O modelo de IA não está configurado corretamente no servidor.";
+      else if (code === "provider_authentication") msg = "A OpenRouter recusou a credencial configurada. O administrador precisa conferir a chave no Render.";
+      else if (code === "provider_credits") msg = "A conta da OpenRouter está sem créditos disponíveis.";
+      else if (code === "provider_model_not_found") msg = "O modelo configurado não foi encontrado na OpenRouter. O administrador precisa conferir OPENROUTER_MODEL no Render.";
+      else if (code === "provider_rate_limited" || code === "request_rate_limited") msg = error.message;
+      else if (code === "provider_timeout" || code === "provider_unavailable") msg = error.message;
+      else if (code === "provider_request_rejected") msg = error.message;
+      else if (code === "provider_invalid_response" || code === "provider_empty_response") msg = error.message;
+      else if (code === "request_too_large") msg = error.message;
+      else if (code === "invalid_request" || code === "invalid_json" || code === "invalid_content_type") msg = error.message;
+      else if (code === "invalid_server_response") msg = "O servidor respondeu em um formato inesperado. Tente novamente mais tarde.";
+      else if (error.status >= 500) msg = "O servidor da B.E.A. está com um problema temporário. Tente novamente mais tarde.";
+      else if (error.status) msg = error.message;
       await fail(msg);
     } finally {
       clearTimeout(timeout);
@@ -785,7 +813,7 @@
 
   btnDescribe.addEventListener("click", () => {
     if (!systemOn || busy) return;
-    processCommand("Descreva de forma curta o que você vê à minha frente.");
+    processCommand("Descreva de forma curta o que você vê à minha frente.", true);
   });
 })();
 </script>
