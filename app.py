@@ -21,6 +21,7 @@ MAX_QUESTION_LENGTH = 5000
 MAX_REQUEST_BYTES = 8 * 1024 * 1024
 CHAT_RATE_LIMIT = 10
 CHAT_RATE_WINDOW_SECONDS = 60
+MAX_COMPLETION_TOKENS = 600
 IMAGE_DATA_URL = re.compile(r"^data:image/jpeg;base64,[A-Za-z0-9+/]*={0,2}$")
 
 app = Flask(__name__)
@@ -45,6 +46,84 @@ def chat_rate_limited(client_ip):
             return True
         timestamps.append(now)
         return False
+
+
+def classify_provider_error(status, details=""):
+    details = details.lower()
+    if status in {401, 403} or any(term in details for term in ("unauthorized", "invalid api key", "authentication")):
+        return (
+            "provider_authentication",
+            "A OpenRouter recusou a credencial configurada. Confira OPENROUTER_API_KEY no Render.",
+            502,
+        )
+    if status in {408, 504}:
+        return (
+            "provider_timeout",
+            "A OpenRouter demorou demais para responder. Tente novamente.",
+            504,
+        )
+    if status == 402 or any(term in details for term in ("insufficient credit", "payment required", "no credits")):
+        return (
+            "provider_credits",
+            "A conta da OpenRouter não tem créditos disponíveis para esta solicitação.",
+            402,
+        )
+    if status == 404 or any(term in details for term in ("model not found", "no endpoints found", "unknown model")):
+        return (
+            "provider_model_not_found",
+            "O modelo não foi encontrado ou não tem endpoints disponíveis na OpenRouter. Confira OPENROUTER_MODEL.",
+            502,
+        )
+    if status == 429 or any(term in details for term in ("rate limit", "too many requests")):
+        return (
+            "provider_rate_limited",
+            "A OpenRouter limitou as solicitações. Aguarde e tente novamente.",
+            429,
+        )
+    if any(term in details for term in ("image", "vision", "multimodal", "unsupported input")):
+        return (
+            "provider_unsupported_input",
+            "O modelo ou provedor não aceitou o conteúdo de texto/imagem enviado.",
+            502,
+        )
+    if status >= 500 or any(term in details for term in ("temporarily unavailable", "service unavailable", "overloaded")):
+        return (
+            "provider_unavailable",
+            "A OpenRouter está temporariamente indisponível. Tente novamente.",
+            502,
+        )
+    return (
+        "provider_request_rejected",
+        "A OpenRouter recusou a solicitação. Verifique o modelo e os formatos de texto/imagem aceitos.",
+        502,
+    )
+
+
+def extract_provider_error_details(payload):
+    if not isinstance(payload, dict):
+        return ""
+    error = payload.get("error")
+    if isinstance(error, dict):
+        message = error.get("message")
+        code = error.get("code")
+        return " ".join(value for value in (message, code) if isinstance(value, str))
+    return error if isinstance(error, str) else ""
+
+
+def extract_text_content(content):
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        text_parts = [
+            item["text"].strip()
+            for item in content
+            if isinstance(item, dict)
+            and item.get("type") == "text"
+            and isinstance(item.get("text"), str)
+            and item["text"].strip()
+        ]
+        return "\n".join(text_parts)
+    return None
 
 
 def validate_messages(messages):
@@ -157,7 +236,11 @@ def chat():
                 "HTTP-Referer": request.url_root.rstrip("/"),
                 "X-Title": "B.E.A. - Assistente de Visão",
             },
-            json={"model": model, "max_tokens": 200, "messages": messages},
+            json={
+                "model": model,
+                "max_tokens": MAX_COMPLETION_TOKENS,
+                "messages": messages,
+            },
             timeout=(10, 40),
         )
     except requests.Timeout as exc:
@@ -173,57 +256,144 @@ def chat():
 
     if not upstream.ok:
         upstream_status = upstream.status_code
-        app.logger.warning("A OpenRouter retornou HTTP %s.", upstream_status)
-        if upstream_status in {401, 403}:
-            return error_response(
-                "A OpenRouter recusou a credencial configurada. Confira OPENROUTER_API_KEY no Render.",
-                502,
-                "provider_authentication",
-            )
-        if upstream_status == 402:
-            return error_response(
-                "A conta da OpenRouter não tem créditos disponíveis para esta solicitação.",
-                402,
-                "provider_credits",
-            )
-        if upstream_status == 404:
-            return error_response(
-                "O modelo configurado não foi encontrado na OpenRouter. Confira OPENROUTER_MODEL no Render.",
-                502,
-                "provider_model_not_found",
-            )
-        if upstream_status == 429:
-            return error_response(
-                "A OpenRouter limitou as solicitações. Aguarde e tente novamente.",
-                429,
-                "provider_rate_limited",
-            )
-        if upstream_status >= 500:
-            return error_response(
-                "A OpenRouter está temporariamente indisponível. Tente novamente.",
-                502,
-                "provider_unavailable",
-            )
-        return error_response(
-            "A OpenRouter recusou a solicitação. Verifique se o modelo aceita o conteúdo enviado.",
-            502,
-            "provider_request_rejected",
+        try:
+            provider_payload = upstream.json()
+        except ValueError:
+            provider_payload = None
+        details = extract_provider_error_details(provider_payload)
+        code, message, response_status = classify_provider_error(upstream_status, details)
+        app.logger.warning(
+            "OpenRouter HTTP %s; categoria segura do erro: %s.",
+            upstream_status,
+            code,
         )
+        return error_response(message, response_status, code)
 
     try:
         result = upstream.json()
-        answer = result["choices"][0]["message"]["content"]
-    except (ValueError, KeyError, IndexError, TypeError):
-        app.logger.warning("A API da OpenRouter retornou uma resposta inválida.")
+    except ValueError:
+        app.logger.warning(
+            "OpenRouter HTTP %s retornou corpo que não é JSON.",
+            upstream.status_code,
+        )
         return error_response(
-            "A API de IA retornou uma resposta inválida.",
+            "A OpenRouter retornou uma resposta que não está em formato JSON.",
             502,
             "provider_invalid_response",
         )
 
-    if not isinstance(answer, str) or not answer.strip():
-        app.logger.warning("A API da OpenRouter retornou uma resposta sem texto.")
-        return error_response("A API de IA retornou uma resposta vazia.", 502, "provider_empty_response")
+    if not isinstance(result, dict):
+        app.logger.warning(
+            "OpenRouter HTTP %s retornou JSON com tipo inesperado (%s).",
+            upstream.status_code,
+            type(result).__name__,
+        )
+        return error_response(
+            "A OpenRouter retornou um JSON em formato inesperado.",
+            502,
+            "provider_invalid_response",
+        )
+
+    if "error" in result:
+        details = extract_provider_error_details(result)
+        code, message, response_status = classify_provider_error(200, details)
+        app.logger.warning(
+            "OpenRouter HTTP %s incluiu erro no JSON; categoria segura: %s.",
+            upstream.status_code,
+            code,
+        )
+        return error_response(message, response_status, code)
+
+    choices = result.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        app.logger.warning(
+            "OpenRouter HTTP %s retornou JSON sem uma escolha de resposta utilizável.",
+            upstream.status_code,
+        )
+        return error_response(
+            "A OpenRouter respondeu, mas não retornou uma escolha de resposta válida.",
+            502,
+            "provider_invalid_response",
+        )
+
+    choice = choices[0]
+    message = choice.get("message")
+    if not isinstance(message, dict):
+        app.logger.warning(
+            "OpenRouter HTTP %s retornou uma escolha sem objeto message.",
+            upstream.status_code,
+        )
+        return error_response(
+            "A OpenRouter respondeu, mas a mensagem da resposta está ausente ou inválida.",
+            502,
+            "provider_invalid_response",
+        )
+
+    finish_reason = choice.get("finish_reason")
+    if finish_reason == "content_filter":
+        app.logger.warning("OpenRouter HTTP %s encerrou a resposta por filtro de conteúdo.", upstream.status_code)
+        return error_response(
+            "A OpenRouter não forneceu uma resposta por causa de um filtro de conteúdo.",
+            502,
+            "provider_content_filtered",
+        )
+
+    answer = extract_text_content(message.get("content"))
+    if answer is None:
+        app.logger.warning(
+            "OpenRouter HTTP %s retornou content com tipo inesperado (%s).",
+            upstream.status_code,
+            type(message.get("content")).__name__,
+        )
+        return error_response(
+            "A OpenRouter retornou conteúdo em formato inesperado.",
+            502,
+            "provider_invalid_response",
+        )
+
+    if finish_reason == "length":
+        app.logger.warning(
+            "OpenRouter HTTP %s encerrou a geração por limite de tokens.",
+            upstream.status_code,
+        )
+        return error_response(
+            "A resposta foi interrompida antes de terminar. Tente novamente com uma pergunta mais curta.",
+            502,
+            "provider_incomplete_response",
+        )
+
+    if not answer:
+        reasoning = message.get("reasoning", message.get("reasoning_content"))
+        has_reasoning = (
+            isinstance(reasoning, str) and bool(reasoning.strip())
+        ) or (isinstance(reasoning, list) and bool(reasoning))
+        if has_reasoning:
+            code = "provider_no_answer"
+            error_message = (
+                "O modelo gerou raciocínio, mas não forneceu uma resposta final. "
+                "Tente novamente com uma pergunta mais direta."
+            )
+        elif finish_reason == "length":
+            code = "provider_incomplete_response"
+            error_message = (
+                "A resposta foi interrompida antes de produzir texto. "
+                "Tente novamente com uma pergunta mais curta."
+            )
+        else:
+            code = "provider_empty_response"
+            error_message = "A OpenRouter respondeu sem texto final. Tente novamente."
+        app.logger.warning(
+            "OpenRouter HTTP %s não retornou texto final (finish_reason=%s; code=%s).",
+            upstream.status_code,
+            (
+                finish_reason
+                if isinstance(finish_reason, str)
+                and finish_reason in {"stop", "length", "content_filter", "tool_calls"}
+                else "ausente/outro"
+            ),
+            code,
+        )
+        return error_response(error_message, 502, code)
 
     return jsonify({"choices": [{"message": {"content": answer}}]})
 
