@@ -48,9 +48,19 @@ def chat_rate_limited(client_ip):
         return False
 
 
-def classify_provider_error(status, details=""):
+def classify_provider_error(status, details="", provider_status=None):
+    if provider_status and status == 200:
+        status = provider_status
     details = details.lower()
-    if status in {401, 403} or any(term in details for term in ("unauthorized", "invalid api key", "authentication")):
+    if status in {401, 403} or any(
+        term in details
+        for term in (
+            "unauthorized",
+            "invalid api key",
+            "invalid_api_key",
+            "authentication",
+        )
+    ):
         return (
             "provider_authentication",
             "A OpenRouter recusou a credencial configurada. Confira OPENROUTER_API_KEY no Render.",
@@ -62,23 +72,63 @@ def classify_provider_error(status, details=""):
             "A OpenRouter demorou demais para responder. Tente novamente.",
             504,
         )
-    if status == 402 or any(term in details for term in ("insufficient credit", "payment required", "no credits")):
+    if status == 402 or any(
+        term in details
+        for term in (
+            "insufficient credit",
+            "insufficient_credit",
+            "payment required",
+            "payment_required",
+            "no credits",
+            "no_credits",
+        )
+    ):
         return (
             "provider_credits",
             "A conta da OpenRouter não tem créditos disponíveis para esta solicitação.",
             402,
         )
-    if status == 404 or any(term in details for term in ("model not found", "no endpoints found", "unknown model")):
+    if status == 404 or any(
+        term in details
+        for term in (
+            "model not found",
+            "model_not_found",
+            "no endpoints found",
+            "no_endpoints_found",
+            "unknown model",
+            "unknown_model",
+        )
+    ):
         return (
             "provider_model_not_found",
             "O modelo não foi encontrado ou não tem endpoints disponíveis na OpenRouter. Confira OPENROUTER_MODEL.",
             502,
         )
-    if status == 429 or any(term in details for term in ("rate limit", "too many requests")):
+    if status == 429 or any(
+        term in details
+        for term in ("rate limit", "rate_limit", "too many requests", "too_many_requests")
+    ):
         return (
             "provider_rate_limited",
             "A OpenRouter limitou as solicitações. Aguarde e tente novamente.",
             429,
+        )
+    if any(
+        term in details
+        for term in (
+            "invalid_request",
+            "invalid parameter",
+            "invalid_parameter",
+            "unsupported parameter",
+            "bad request",
+            "validation_error",
+            "missing required",
+        )
+    ):
+        return (
+            "provider_request_rejected",
+            "A OpenRouter recusou os parâmetros da solicitação. Confira o modelo e os parâmetros aceitos.",
+            502,
         )
     if any(term in details for term in ("image", "vision", "multimodal", "unsupported input")):
         return (
@@ -101,13 +151,80 @@ def classify_provider_error(status, details=""):
 
 def extract_provider_error_details(payload):
     if not isinstance(payload, dict):
-        return ""
+        return {}
     error = payload.get("error")
-    if isinstance(error, dict):
-        message = error.get("message")
-        code = error.get("code")
-        return " ".join(value for value in (message, code) if isinstance(value, str))
-    return error if isinstance(error, str) else ""
+    if not isinstance(error, dict):
+        return {"message": error if isinstance(error, str) else ""}
+
+    metadata = error.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    def safe_identifier(value, pattern=r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}"):
+        if isinstance(value, bool) or not isinstance(value, (str, int)):
+            return None
+        value = str(value).strip()
+        return value if re.fullmatch(pattern, value) else None
+
+    code_value = error.get("code")
+    provider_status = error.get("status", error.get("http_status"))
+    if provider_status is None and isinstance(code_value, int) and not isinstance(code_value, bool):
+        provider_status = code_value
+    if isinstance(provider_status, str) and provider_status.isdecimal():
+        provider_status = int(provider_status)
+    if (
+        not isinstance(provider_status, int)
+        or isinstance(provider_status, bool)
+        or not 400 <= provider_status <= 599
+    ):
+        provider_status = None
+
+    return {
+        "message": error.get("message") if isinstance(error.get("message"), str) else "",
+        "code": safe_identifier(code_value),
+        "type": safe_identifier(error.get("type")),
+        "provider": safe_identifier(
+            metadata.get("provider_name")
+            or metadata.get("provider")
+            or error.get("provider")
+            or error.get("source"),
+            r"[A-Za-z0-9][A-Za-z0-9_.: -]{0,79}",
+        ),
+        "provider_code": safe_identifier(
+            metadata.get("provider_code") or error.get("provider_code")
+        ),
+        "provider_status": provider_status,
+    }
+
+
+def provider_error_description(details):
+    if isinstance(details, str):
+        return details
+    if not isinstance(details, dict):
+        return ""
+    return " ".join(
+        value
+        for value in (
+            details.get("message"),
+            details.get("code"),
+            details.get("type"),
+            details.get("provider_code"),
+        )
+        if isinstance(value, str)
+    )
+
+
+def log_provider_error(status, category, details):
+    app.logger.warning(
+        "OpenRouter HTTP %s retornou erro; categoria=%s; code=%s; type=%s; "
+        "provider=%s; provider_code=%s.",
+        status,
+        category,
+        details.get("code") or "indisponível",
+        details.get("type") or "indisponível",
+        details.get("provider") or "indisponível",
+        details.get("provider_code") or "indisponível",
+    )
 
 
 def extract_text_content(content):
@@ -261,12 +378,12 @@ def chat():
         except ValueError:
             provider_payload = None
         details = extract_provider_error_details(provider_payload)
-        code, message, response_status = classify_provider_error(upstream_status, details)
-        app.logger.warning(
-            "OpenRouter HTTP %s; categoria segura do erro: %s.",
+        code, message, response_status = classify_provider_error(
             upstream_status,
-            code,
+            provider_error_description(details),
+            details.get("provider_status"),
         )
+        log_provider_error(upstream_status, code, details)
         return error_response(message, response_status, code)
 
     try:
@@ -296,12 +413,12 @@ def chat():
 
     if "error" in result:
         details = extract_provider_error_details(result)
-        code, message, response_status = classify_provider_error(200, details)
-        app.logger.warning(
-            "OpenRouter HTTP %s incluiu erro no JSON; categoria segura: %s.",
+        code, message, response_status = classify_provider_error(
             upstream.status_code,
-            code,
+            provider_error_description(details),
+            details.get("provider_status"),
         )
+        log_provider_error(upstream.status_code, code, details)
         return error_response(message, response_status, code)
 
     choices = result.get("choices")

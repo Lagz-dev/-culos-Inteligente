@@ -336,6 +336,86 @@ class ChatRouteTests(unittest.TestCase):
         self.assertIn("provider_rate_limited", logs)
         self.assertNotIn("private account detail", logs)
 
+    def test_http_200_provider_error_is_rejected_and_logged_safely(self):
+        upstream = Mock(ok=True, status_code=200)
+        upstream.json.return_value = {
+            "error": {
+                "message": "private prompt detail must not be logged",
+                "code": 400,
+                "type": "invalid_request_error",
+                "metadata": {
+                    "provider_name": "nvidia",
+                    "provider_code": "invalid_parameter",
+                },
+            }
+        }
+
+        with patch("app.requests.post", return_value=upstream), self.assertLogs(
+            "app", level="WARNING"
+        ) as captured:
+            response = self.client.post(
+                "/api/chat",
+                json={"messages": [{"role": "user", "content": "Olá"}]},
+            )
+
+        logs = "\n".join(captured.output)
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.json["code"], "provider_request_rejected")
+        self.assertIn("parâmetros", response.json["error"])
+        self.assertIn("HTTP 200", logs)
+        self.assertIn("code=400", logs)
+        self.assertIn("type=invalid_request_error", logs)
+        self.assertIn("provider=nvidia", logs)
+        self.assertIn("provider_code=invalid_parameter", logs)
+        self.assertNotIn("private prompt detail", logs)
+        self.assertNotIn("private prompt detail", response.get_data(as_text=True))
+
+    def test_http_200_provider_error_uses_structured_codes_for_classification(self):
+        cases = (
+            (
+                {"code": 401, "type": "authentication_error"},
+                "provider_authentication",
+                502,
+            ),
+            (
+                {
+                    "code": 402,
+                    "type": "provider_error",
+                    "metadata": {"provider_code": "insufficient_credit"},
+                },
+                "provider_credits",
+                402,
+            ),
+            (
+                {
+                    "code": 404,
+                    "type": "provider_error",
+                    "metadata": {"provider_name": "nvidia"},
+                },
+                "provider_model_not_found",
+                502,
+            ),
+            (
+                {"code": 429, "type": "rate_limit_error"},
+                "provider_rate_limited",
+                429,
+            ),
+        )
+        for error_fields, expected_code, expected_status in cases:
+            with self.subTest(expected_code=expected_code):
+                upstream = Mock(ok=True, status_code=200)
+                upstream.json.return_value = {
+                    "error": {"message": "Request rejected", **error_fields}
+                }
+                with patch("app.requests.post", return_value=upstream):
+                    response = self.client.post(
+                        "/api/chat",
+                        json={"messages": [{"role": "user", "content": "Olá"}]},
+                    )
+
+                self.assertEqual(response.status_code, expected_status)
+                self.assertEqual(response.json["code"], expected_code)
+
     def test_upstream_timeout_returns_gateway_timeout(self):
         with patch("app.requests.post", side_effect=app_module.requests.Timeout):
             response = self.client.post(
