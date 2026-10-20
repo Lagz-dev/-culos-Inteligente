@@ -24,6 +24,8 @@
   /* Cor de destaque muda conforme o estado do sistema */
   body[data-state="off"]       { --accent: #7f93ab; }
   body[data-state="listening"] { --accent: #00f2ff; }
+  body[data-state="reconnecting"] { --accent: #ffb800; }
+  body[data-state="muted"]     { --accent: #7f93ab; }
   body[data-state="thinking"]  { --accent: #ffb800; }
   body[data-state="speaking"]  { --accent: #3dffa2; }
   body[data-state="error"]     { --accent: #ff4d6d; }
@@ -163,7 +165,7 @@
 
   #stateLabel { font-family: 'Orbitron', sans-serif; font-size: 14px; letter-spacing: 1.5px; color: var(--accent); line-height: 1.3; }
 
-  /* ---------- Caixa de status (toque para repetir) ---------- */
+  /* ---------- Caixa de status ---------- */
   #status {
     background: rgba(0, 0, 0, .55);
     border-left: 5px solid var(--accent);
@@ -175,8 +177,6 @@
     color: var(--text);
     display: flex; align-items: center;
     word-break: break-word;
-    cursor: pointer;
-    user-select: none;
     transition: border-color .4s;
   }
   #status:focus-visible, .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
@@ -196,8 +196,6 @@
   .btn:disabled { opacity: .6; cursor: wait; }
   .btn-main { background: linear-gradient(135deg, #00f2ff, #0a6bff); color: #021020; border-color: transparent; box-shadow: 0 0 22px rgba(0, 242, 255, .45); }
   .btn-alt  { background: rgba(255, 255, 255, .06); color: var(--text); }
-  .btn-alt.armed { background: var(--accent); color: #021020; box-shadow: 0 0 22px var(--accent); }
-
   /* ---------- Animações ---------- */
   @keyframes blink   { 50% { opacity: .35; } }
   @keyframes scan    { 0% { top: 0; } 50% { top: calc(100% - 3px); } 100% { top: 0; } }
@@ -239,17 +237,16 @@
     <div id="stateLabel">Sistema desligado</div>
   </div>
 
-  <div id="status" role="button" tabindex="0" aria-live="polite" title="Toque para ouvir de novo">
-    Toque em “Iniciar sistema” para começar.
+  <div id="status" role="status" aria-live="polite">
+    Toque em “Ativar B.E.A.” para conceder as permissões e iniciar.
   </div>
-  <div class="hint" id="hint" hidden>Toque na caixa acima para ouvir a última resposta de novo.</div>
+  <div class="hint" id="hint" hidden>Diga “Bia” e faça seu pedido. A cena também é analisada automaticamente.</div>
 
   <div class="controls">
-    <button id="startSystem" class="btn btn-main">🚀 Iniciar sistema B.E.A.</button>
-    <div id="actions" class="controls" hidden>
-      <button id="btnTalk" class="btn btn-alt">🎤 Falar com a BEA</button>
-      <button id="btnDescribe" class="btn btn-alt">👁️ Descrever o que vejo</button>
-    </div>
+    <button id="startSystem" class="btn btn-main">🚀 Ativar B.E.A.</button>
+    <button id="muteMic" class="btn btn-alt" type="button" aria-pressed="false" hidden>
+      🎙️ Microfone ligado — toque para silenciar
+    </button>
   </div>
 
 </main>
@@ -263,7 +260,9 @@
     imageMaxSide: 1024,              // maior lado da foto enviada (px)
     imageQuality: 0.75,              // qualidade JPEG (0 a 1)
     apiTimeoutMs: 55000,
-    armedSeconds: 10                 // tempo de escuta após tocar em "Falar com a BEA"
+    firstEnvironmentScanMs: 15000,
+    environmentScanIntervalMs: 60000,
+    recognitionRestartMs: 700
   };
   const SYSTEM_PROMPT =
     "Você é a BEA, assistente de voz feminina estilo JARVIS para óculos de acessibilidade. " +
@@ -274,17 +273,17 @@
   /* ================= ELEMENTOS ================= */
   const $ = (id) => document.getElementById(id);
   const video = $("video"), statusEl = $("status"), stateLabel = $("stateLabel");
-  const startBtn = $("startSystem"), actions = $("actions"), hint = $("hint");
-  const btnTalk = $("btnTalk"), btnDescribe = $("btnDescribe");
+  const startBtn = $("startSystem"), muteMicBtn = $("muteMic"), hint = $("hint");
 
   /* ================= ESTADO ================= */
   let stream = null, recognition = null, wakeLock = null;
   let systemOn = false;       // sistema iniciado
-  let busy = false;           // processando ou falando (microfone fica desligado)
+  let busy = false;           // processando ou falando (reconhecimento pausado)
   let micBlocked = false;     // permissão de microfone negada
-  let armed = false, armTimer = null;
+  let micMuted = false;
+  let recognitionRunning = false, recognitionStarting = false;
   let restartTimer = null;
-  let lastAnswer = "Sistemas online. Chame por Bia.";
+  let environmentScanTimer = null;
 
   function setState(state, label) {
     document.body.dataset.state = state;
@@ -292,6 +291,16 @@
   }
   function showStatus(text) { statusEl.textContent = text; }
   function buzz(pattern) { try { navigator.vibrate && navigator.vibrate(pattern); } catch (e) {} }
+  function updateMicButton() {
+    const unavailable = !SR || micBlocked;
+    muteMicBtn.disabled = unavailable;
+    muteMicBtn.setAttribute("aria-pressed", String(micMuted));
+    muteMicBtn.textContent = unavailable
+      ? "🎙️ Microfone indisponível — confira as permissões"
+      : micMuted
+        ? "🔇 Microfone silenciado — toque para reativar"
+        : "🎙️ Microfone ligado — toque para silenciar";
+  }
 
   /* ================= VOZ (TEXT-TO-SPEECH) ================= */
   const hasTTS = "speechSynthesis" in window;
@@ -423,7 +432,6 @@
   // Fala o texto e, ao terminar, volta a escutar
   function speak(text) {
     return new Promise((resolve) => {
-      lastAnswer = text;
       showStatus("BEA: " + text);
       busy = true;
       stopRecognition();
@@ -487,7 +495,7 @@
         watchdog = setTimeout(() => {
           if (!started && token === speakToken) {
             window.speechSynthesis.cancel();
-            showStatus("BEA: " + text + "\n\n(Sem áudio? Confira o volume de mídia e toque aqui.)");
+            showStatus("BEA: " + text + "\n\n(Sem áudio? Confira o volume de mídia do aparelho.)");
             done();
           }
         }, 8000);
@@ -495,28 +503,8 @@
     });
   }
 
-  // Toque na caixa de status = repete a última resposta
-  function repeatLast() { if (!systemOn) return; speak(lastAnswer); }
-  statusEl.addEventListener("click", repeatLast);
-  statusEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); repeatLast(); }
-  });
-
   /* ================= RECONHECIMENTO DE VOZ ================= */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  function arm(seconds) {
-    armed = true;
-    btnTalk.classList.add("armed");
-    clearTimeout(armTimer);
-    armTimer = setTimeout(disarm, seconds * 1000);
-  }
-  function disarm() {
-    armed = false;
-    btnTalk.classList.remove("armed");
-    clearTimeout(armTimer);
-    if (systemOn && !busy && !micBlocked) setState("listening", "Ouvindo… diga “Bia”");
-  }
 
   function buildRecognition() {
     recognition = new SR();
@@ -525,27 +513,25 @@
     recognition.lang = "pt-BR";
 
     recognition.onstart = () => {
-      if (busy) return;
-      setState("listening", armed ? "Pode falar…" : "Ouvindo… diga “Bia”");
+      recognitionStarting = false;
+      recognitionRunning = true;
+      if (busy || micMuted || micBlocked) {
+        stopRecognition();
+        return;
+      }
+      setState("listening", "Ouvindo… diga “Bia”");
+      showStatus("Microfone ativo. Diga “Bia” e faça seu pedido.");
     };
 
     recognition.onresult = (event) => {
-      if (busy) return;
+      if (busy || micMuted || micBlocked) return;
       const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-      let command = null;
-      if (WAKE_ONE.test(transcript)) {
-        command = transcript.replace(WAKE_ALL, "").replace(/^[\s,.:;!?-]+/, "").trim();
-      } else if (armed) {
-        command = transcript;
-      } else {
-        return; // sem palavra de ativação: ignora
-      }
+      if (!WAKE_ONE.test(transcript)) return;
+      const command = transcript.replace(WAKE_ALL, "").replace(/^[\s,.:;!?-]+/, "").trim();
 
       if (!command) {
-        arm(CONFIG.armedSeconds + 3);
         speak("Estou ouvindo. O que deseja?");
       } else {
-        disarm();
         processCommand(command);
       }
     };
@@ -553,48 +539,79 @@
     recognition.onerror = (e) => {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
         micBlocked = true;
+        updateMicButton();
         fail("Microfone bloqueado. Permita o acesso ao microfone nas configurações do navegador e recarregue a página.");
       } else if (e.error === "audio-capture") {
         micBlocked = true;
+        updateMicButton();
         fail("Não encontrei nenhum microfone neste aparelho.");
       } else if (e.error === "network") {
+        setState("reconnecting", "Reconectando microfone…");
         showStatus("O reconhecimento de voz perdeu a internet. Tentando de novo…");
       }
-      // "no-speech" e "aborted" são normais: o onend reinicia
     };
 
-    recognition.onend = () => scheduleRestart();
+    recognition.onend = () => {
+      recognitionRunning = false;
+      recognitionStarting = false;
+      scheduleRestart();
+    };
   }
 
   function startRecognition() {
+    if (!systemOn || busy || micMuted || micBlocked) return;
     if (!SR) {
+      micBlocked = true;
+      updateMicButton();
       setState("error", "Sem reconhecimento de voz");
-      showStatus("Este navegador não tem reconhecimento de voz. Use o Google Chrome no Android.");
+      showStatus("Este navegador não tem reconhecimento de voz. Use um navegador compatível, como o Google Chrome.");
       return;
     }
     if (!recognition) buildRecognition();
-    try { recognition.start(); } catch (e) { /* já estava ativo */ }
+    if (recognitionRunning || recognitionStarting) return;
+    recognitionStarting = true;
+    setState("reconnecting", "Conectando microfone…");
+    try {
+      recognition.start();
+    } catch (error) {
+      recognitionStarting = false;
+      console.warn("Não foi possível iniciar o reconhecimento de voz.", {
+        name: error.name || "Error"
+      });
+      setState("error", "Microfone indisponível");
+      showStatus("Não foi possível iniciar a escuta. Confira a permissão do microfone e tente reativá-lo.");
+    }
   }
 
   // abort() solta o microfone na hora (stop() demora e atrapalha a fala)
   function stopRecognition() {
     clearTimeout(restartTimer);
+    recognitionStarting = false;
     if (recognition) { try { recognition.abort(); } catch (e) {} }
   }
 
   function scheduleRestart() {
-    if (!systemOn || busy || micBlocked) return;
+    if (!systemOn || busy || micMuted || micBlocked) return;
     clearTimeout(restartTimer);
+    setState("reconnecting", "Reconectando microfone…");
     restartTimer = setTimeout(() => {
-      if (systemOn && !busy && !micBlocked) startRecognition();
-    }, 400);
+      if (systemOn && !busy && !micMuted && !micBlocked) startRecognition();
+    }, CONFIG.recognitionRestartMs);
   }
 
   function resumeListening() {
     busy = false;
     if (!systemOn) return;
-    if (micBlocked) { setState("error", "Microfone bloqueado"); return; }
-    setState("listening", armed ? "Pode falar…" : "Ouvindo… diga “Bia”");
+    if (micMuted) {
+      setState("muted", "Microfone silenciado");
+      showStatus("Microfone silenciado. Toque em “Reativar microfone” para voltar à escuta.");
+      return;
+    }
+    if (micBlocked) {
+      setState("error", "Microfone indisponível");
+      return;
+    }
+    setState("reconnecting", "Conectando microfone…");
     startRecognition();
   }
 
@@ -615,6 +632,14 @@
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
+      });
+      stream.getVideoTracks().forEach((track) => {
+        track.addEventListener("ended", () => {
+          clearEnvironmentScan();
+          stream = null;
+          video.srcObject = null;
+          showStatus("A câmera foi desconectada. Reconecte-a e recarregue a página para retomar a leitura automática.");
+        }, { once: true });
       });
       video.srcObject = stream;
       await video.play();
@@ -649,8 +674,36 @@
     return canvas.toDataURL("image/jpeg", CONFIG.imageQuality);
   }
 
+  function clearEnvironmentScan() {
+    clearTimeout(environmentScanTimer);
+    environmentScanTimer = null;
+  }
+
+  function scheduleEnvironmentScan(delay = CONFIG.environmentScanIntervalMs) {
+    clearEnvironmentScan();
+    if (!systemOn || !stream || document.visibilityState !== "visible") return;
+
+    environmentScanTimer = setTimeout(async () => {
+      environmentScanTimer = null;
+      if (!systemOn || !stream || document.visibilityState !== "visible") return;
+      if (busy) {
+        scheduleEnvironmentScan(10000);
+        return;
+      }
+      try {
+        await processCommand(
+          "Descreva brevemente o ambiente visível à minha frente.",
+          true,
+          true
+        );
+      } finally {
+        scheduleEnvironmentScan();
+      }
+    }, delay);
+  }
+
   /* ================= API (lógica original) ================= */
-  async function processCommand(question, requireImage = false) {
+  async function processCommand(question, requireImage = false, automatic = false) {
     if (busy) return;
     busy = true;
     stopRecognition();
@@ -665,7 +718,13 @@
       photo = null;
     }
     if (!photo && requireImage) {
-      await fail("Não consegui capturar uma imagem. Verifique a câmera e tente novamente.");
+      if (automatic) {
+        setState("error", "Câmera indisponível");
+        showStatus("Não consegui capturar a imagem para a leitura automática. Confira a câmera.");
+        resumeListening();
+      } else {
+        await fail("Não consegui capturar uma imagem. Verifique a câmera e tente novamente.");
+      }
       return;
     }
     if (!photo) {
@@ -675,7 +734,13 @@
     }
 
     if (!navigator.onLine) {
-      await fail("Estou sem internet. Verifique a conexão do celular.");
+      if (automatic) {
+        setState("error", "Sem conexão");
+        showStatus("Leitura automática pausada: confira a conexão com a internet.");
+        resumeListening();
+      } else {
+        await fail("Estou sem internet. Verifique a conexão do celular.");
+      }
       return;
     }
 
@@ -748,14 +813,22 @@
       else if (code === "provider_model_not_found") msg = "O modelo configurado não foi encontrado na OpenRouter. O administrador precisa conferir OPENROUTER_MODEL no Render.";
       else if (code === "provider_rate_limited" || code === "request_rate_limited") msg = error.message;
       else if (code === "provider_timeout" || code === "provider_unavailable") msg = error.message;
-      else if (code === "provider_request_rejected") msg = error.message;
-      else if (code === "provider_invalid_response" || code === "provider_empty_response") msg = error.message;
+      else if (code === "provider_request_rejected" || code === "provider_unsupported_input") msg = error.message;
+      else if (code === "provider_invalid_response" || code === "provider_empty_response" ||
+        code === "provider_no_answer" || code === "provider_incomplete_response" ||
+        code === "provider_content_filtered") msg = error.message;
       else if (code === "request_too_large") msg = error.message;
       else if (code === "invalid_request" || code === "invalid_json" || code === "invalid_content_type") msg = error.message;
       else if (code === "invalid_server_response") msg = "O servidor respondeu em um formato inesperado. Tente novamente mais tarde.";
       else if (error.status >= 500) msg = "O servidor da B.E.A. está com um problema temporário. Tente novamente mais tarde.";
       else if (error.status) msg = error.message;
-      await fail(msg);
+      if (automatic) {
+        setState("error", "Falha na leitura");
+        showStatus("Não consegui concluir a leitura automática. " + msg);
+        resumeListening();
+      } else {
+        await fail(msg);
+      }
     } finally {
       clearTimeout(timeout);
     }
@@ -766,15 +839,22 @@
     try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
   }
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && systemOn) keepAwake();
+    if (document.visibilityState === "visible" && systemOn) {
+      keepAwake();
+      if (stream && !environmentScanTimer) scheduleEnvironmentScan();
+    } else {
+      clearEnvironmentScan();
+    }
   });
   window.addEventListener("pagehide", () => {
     systemOn = false;
     clearTimeout(restartTimer);
-    clearTimeout(armTimer);
+    clearEnvironmentScan();
     if (recognition) {
       try { recognition.abort(); } catch (e) {}
     }
+    recognitionRunning = false;
+    recognitionStarting = false;
     if (stream) stream.getTracks().forEach((track) => track.stop());
     video.srcObject = null;
     stopSpeaking();
@@ -792,28 +872,32 @@
     keepAwake();
 
     startBtn.hidden = true;
-    actions.hidden = false;
+    muteMicBtn.hidden = false;
+    updateMicButton();
     hint.hidden = false;
 
     if (cameraOk) {
-      await speak("Olá! Sou a BEA, mas pode me chamar de Bia. Diga 'Bia' para começar.");
+      await speak("Olá! Sou a Bia. Já estou ouvindo. Diga 'Bia' e faça seu pedido.");
     } else {
-      await speak("Olá! Eu sou a BEA, mas pode me chamar de Bia. Estou sem câmera. Verifique as permissões.");
+      await speak("Olá! Sou a Bia e já estou ouvindo. Estou sem câmera; a leitura automática do ambiente não está disponível.");
     }
+    if (cameraOk) scheduleEnvironmentScan(CONFIG.firstEnvironmentScanMs);
   });
 
-  btnTalk.addEventListener("click", () => {
+  muteMicBtn.addEventListener("click", () => {
     if (!systemOn) return;
-    stopSpeaking();           // interrompe a fala, se houver
-    busy = false;
-    arm(CONFIG.armedSeconds);
-    buzz(40);
-    resumeListening();
-  });
-
-  btnDescribe.addEventListener("click", () => {
-    if (!systemOn || busy) return;
-    processCommand("Descreva de forma curta o que você vê à minha frente.", true);
+    micMuted = !micMuted;
+    updateMicButton();
+    if (micMuted) {
+      stopRecognition();
+      if (!busy) setState("muted", "Microfone silenciado");
+      showStatus("Microfone silenciado. A Bia não ouvirá comandos até você reativá-lo.");
+      return;
+    }
+    showStatus(busy
+      ? "Microfone reativado. A escuta retornará quando a Bia terminar de responder."
+      : "Microfone reativado. Diga “Bia” e faça seu pedido.");
+    if (!busy) resumeListening();
   });
 })();
 </script>

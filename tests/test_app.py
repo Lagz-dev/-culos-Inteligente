@@ -1,8 +1,19 @@
 import os
 import unittest
+from html.parser import HTMLParser
 from unittest.mock import Mock, patch
 
 import app as app_module
+
+
+class ButtonParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.button_ids = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "button":
+            self.button_ids.append(dict(attrs).get("id"))
 
 
 class ChatRouteTests(unittest.TestCase):
@@ -52,6 +63,22 @@ class ChatRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"<title>B.E.A", response.data)
         response.close()
+
+    def test_hands_free_voice_and_periodic_vision_controls_are_present(self):
+        response = self.client.get("/")
+        html = response.get_data(as_text=True)
+        parser = ButtonParser()
+        parser.feed(html)
+
+        self.assertEqual(parser.button_ids, ["startSystem", "muteMic"])
+        self.assertNotIn('id="btnTalk"', html)
+        self.assertNotIn('id="btnDescribe"', html)
+        self.assertIn('aria-pressed="false"', html)
+        self.assertIn('recognition.abort()', html)
+        self.assertIn('if (busy || micMuted || micBlocked) return;', html)
+        self.assertIn("environmentScanIntervalMs: 60000", html)
+        self.assertIn("scheduleEnvironmentScan(CONFIG.firstEnvironmentScanMs)", html)
+        self.assertIn('document.visibilityState !== "visible"', html)
 
     def test_chat_sends_configured_model_and_returns_answer(self):
         upstream = Mock()

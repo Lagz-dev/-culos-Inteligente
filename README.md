@@ -1,16 +1,25 @@
 # B.E.A. — Assistente de Visão
 
-Aplicação local de acessibilidade com câmera, reconhecimento e síntese de voz e respostas de IA. O navegador envia as mensagens ao backend Flask; somente o backend acessa a OpenRouter.
+A B.E.A. é uma aplicação de acessibilidade que combina câmera, interação por voz e respostas de IA. O navegador envia as perguntas e imagens ao backend Flask; o backend acessa a OpenRouter usando uma chave mantida no servidor.
+
+## Como funciona
+
+- Depois de uma ativação inicial e da concessão das permissões, a escuta de voz fica contínua. Diga **“Bia”** antes do pedido para evitar que conversas ambientes sejam enviadas por engano.
+- A B.E.A. pausa o reconhecimento enquanto processa uma solicitação ou reproduz áudio e o retoma ao terminar.
+- O botão **Silenciar/Reativar microfone** controla a escuta. Silenciar não interrompe uma resposta que já esteja sendo reproduzida.
+- Com a câmera disponível, a aplicação envia uma imagem para análise inicialmente após 15 segundos e, depois, a cada 60 segundos. A leitura automática pausa quando a página fica oculta ou a câmera deixa de estar disponível.
+- A interface continua aceitando perguntas sobre o que está diante da câmera. Sem câmera, perguntas de voz podem seguir sem imagem.
 
 ## Requisitos
 
 - Windows 10/11 e Python 3.10 ou superior.
-- Chave da OpenRouter com acesso a um modelo compatível com imagens.
-- Google Chrome recomendado para reconhecimento de voz em português.
+- Uma chave da OpenRouter com acesso a um modelo que aceite imagens.
+- Navegador compatível com `getUserMedia`, `SpeechRecognition`/`webkitSpeechRecognition` e síntese de voz. O Google Chrome é recomendado; os recursos disponíveis variam por navegador e dispositivo.
+- HTTPS para hospedagem pública. Em desenvolvimento local, `localhost` é considerado contexto seguro pelos navegadores modernos.
 
-## Configuração e execução
+## Instalação e execução local
 
-No PowerShell, na pasta do projeto:
+Abra o PowerShell na pasta do projeto e execute:
 
 ```powershell
 py -m venv .venv
@@ -20,35 +29,57 @@ notepad .env
 .\.venv\Scripts\python.exe app.py
 ```
 
-No arquivo `.env`, substitua `replace-with-your-openrouter-api-key` pela chave nova da OpenRouter. O modelo padrão é `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`; altere `OPENROUTER_MODEL` somente para um ID existente que aceite imagens. Nunca coloque a chave no HTML, no JavaScript ou em arquivos versionados.
+No `.env`, configure `OPENROUTER_API_KEY` com sua chave. Não publique nem compartilhe esse arquivo. A variável `OPENROUTER_MODEL` pode ser configurada com o identificador de um modelo disponível que aceite texto e imagens; se omitida, é usado o modelo padrão do projeto.
 
-Abra `http://127.0.0.1:5000` no Chrome. O localhost permite acesso à câmera em navegadores compatíveis; aceite as permissões de câmera e microfone. O reconhecimento de voz pode depender da internet e do suporte do navegador.
+Abra <http://127.0.0.1:5000>, conceda as permissões de câmera e microfone e toque uma vez em **Ativar B.E.A.**. Essa ativação inicial é necessária para iniciar os recursos protegidos pelo navegador e liberar a reprodução de áudio. Depois, use a palavra de ativação ou o botão de microfone.
 
-Para conferir se o backend iniciou, acesse `http://127.0.0.1:5000/api/health`. A resposta indica apenas se a chave está configurada, sem expor seu conteúdo.
+O endpoint <http://127.0.0.1:5000/api/health> informa se o backend responde e se as variáveis de integração estão configuradas; ele não faz uma chamada à OpenRouter.
 
-Para executar os testes locais do backend:
+## Testes
+
+Instale as dependências de desenvolvimento e execute a suíte:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider
+```
+
+Também é possível executar os testes com o `unittest` da biblioteca padrão:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-## Hospedagem gratuita no Render
+## Hospedagem no Render
 
-1. Envie o projeto para o GitHub, incluindo `app.py`, `index1.html`, `requirements.txt` e os demais arquivos necessários. Não envie `.env`.
-2. No Render, crie um **Web Service** conectado ao repositório.
-3. Configure:
-   - **Runtime:** Python
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn app:app --bind 0.0.0.0:$PORT --timeout 60`
-4. Em **Environment Variables**, configure `OPENROUTER_API_KEY` com uma chave válida e `OPENROUTER_MODEL` como `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` (ou outro ID existente que aceite imagens). O nome antigo `nvidia/nemotron-3-nano-omni:free` não está no catálogo público consultado; atualize a variável no Render, pois o backend não troca automaticamente um modelo configurado que seja inválido.
-5. Implante o serviço e abra a URL HTTPS fornecida pelo Render.
+Crie um **Web Service** conectado ao repositório e configure:
 
-O comando `gunicorn app:app` carrega a aplicação WSGI `app` definida em `app.py`; o comando de inicialização acima também vincula o servidor ao host e à porta exigidos pelo Render. O timeout de 60 segundos permite concluir chamadas de IA que podem levar até 50 segundos. A rota `/` serve `index1.html`.
+| Configuração | Valor |
+|---|---|
+| Runtime | Python |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `gunicorn app:app --bind 0.0.0.0:$PORT --timeout 60` |
 
-O plano gratuito pode suspender serviços inativos e ter limites de uso. Câmera e microfone dependem da permissão do navegador e de acesso HTTPS; reconhecimento de voz e vozes disponíveis variam conforme o navegador e o dispositivo. A rota de chat limita cada IP a 10 solicitações por minuto por processo do Gunicorn; esse limite em memória é local a cada processo e não substitui controles de uso da conta/provedor.
+Em **Environment Variables**, defina:
+
+| Variável | Valor |
+|---|---|
+| `OPENROUTER_API_KEY` | Chave privada da OpenRouter, configurada somente no Render |
+| `OPENROUTER_MODEL` | ID de um modelo disponível com suporte a texto e imagem |
+
+O endpoint `/` serve a interface `index1.html`. Após o deploy, verifique `/api/health` e teste uma pergunta na interface. Não inclua `.env` no repositório.
+
+## Limitações conhecidas
+
+- A Web Speech API não está disponível em todos os navegadores. Alguns navegadores dependem de conexão à internet para reconhecimento de voz.
+- O início de câmera, microfone e áudio depende das permissões e das políticas de ativação do navegador. Em caso de permissão negada ou recurso indisponível, a interface informa o problema; habilite a permissão e recarregue a página quando necessário.
+- A leitura automática é periódica, não contínua em tempo real: usa aproximadamente uma chamada de IA por minuto enquanto a página está visível e a câmera está disponível. Isso consome dados, bateria e uso/créditos do provedor. Ela não roda em segundo plano.
+- Qualidade e gênero percebido da voz sintetizada dependem das vozes instaladas/disponibilizadas pelo sistema e pelo navegador.
+- O plano gratuito do Render pode suspender o serviço após inatividade e está sujeito aos limites do provedor e da plataforma.
+- O limite de solicitações do backend é mantido em memória por processo; não equivale a um limite global entre múltiplas instâncias.
 
 ## Segurança
 
-- `.env` e ambientes virtuais são ignorados pelo Git.
-- Se uma chave anterior foi colocada no código ou em um commit, revogue-a na OpenRouter e configure uma chave nova no `.env`. Remover a chave do arquivo atual não invalida cópias anteriores.
-- Não publique o `.env` nem envie a chave para o navegador.
+- A chave da OpenRouter é lida pelo backend através de variável de ambiente e nunca deve ser colocada no HTML, JavaScript ou mensagens de erro.
+- `.env`, ambientes virtuais e caches devem permanecer fora do Git.
+- Se uma chave tiver sido exposta em código ou histórico, revogue-a na OpenRouter e configure uma nova. Apagar o valor do arquivo atual não invalida cópias anteriores.
