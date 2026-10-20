@@ -25,6 +25,7 @@ class ChatRouteTests(unittest.TestCase):
             {
                 "OPENROUTER_API_KEY": "test-only-placeholder",
                 "OPENROUTER_MODEL": "test/vision-model",
+                "OPENROUTER_FALLBACK_MODELS": "",
             },
         )
         self.environment.start()
@@ -109,12 +110,104 @@ class ChatRouteTests(unittest.TestCase):
             {"choices": [{"message": {"content": "Há uma porta à frente."}}]},
         )
         self.assertEqual(post.call_args.kwargs["json"]["model"], "test/vision-model")
+        self.assertNotIn("models", post.call_args.kwargs["json"])
         self.assertEqual(post.call_args.kwargs["json"]["max_tokens"], 600)
         self.assertEqual(post.call_args.kwargs["json"]["messages"], messages)
         self.assertTrue(post.call_args.kwargs["headers"]["HTTP-Referer"].startswith("http"))
         self.assertEqual(
             post.call_args.kwargs["headers"]["Authorization"],
             f"Bearer {os.environ['OPENROUTER_API_KEY']}",
+        )
+
+    def test_configured_free_fallback_models_are_forwarded_in_priority_order(self):
+        upstream = Mock(ok=True, status_code=200)
+        upstream.json.return_value = {
+            "choices": [{"message": {"content": "Resposta do modelo alternativo."}}]
+        }
+        fallback_models = "minimax/minimax-m3.1-flash:free,openrouter/free"
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "O que aparece na imagem?"},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": "data:image/jpeg;base64,ZmFrZQ=="},
+                    },
+                ],
+            }
+        ]
+
+        with patch.dict(
+            os.environ,
+            {"OPENROUTER_FALLBACK_MODELS": fallback_models},
+        ), patch("app.requests.post", return_value=upstream) as post:
+            response = self.client.post(
+                "/api/chat",
+                json={"messages": messages},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = post.call_args.kwargs["json"]
+        self.assertEqual(
+            payload["models"],
+            [
+                "test/vision-model",
+                "minimax/minimax-m3.1-flash:free",
+                "openrouter/free",
+            ],
+        )
+        self.assertNotIn("model", payload)
+        self.assertEqual(payload["messages"], messages)
+
+    def test_fallback_configuration_rejects_paid_or_duplicate_models(self):
+        invalid_lists = (
+            "paid/provider-model",
+            "minimax/minimax-m3.1-flash:free,minimax/minimax-m3.1-flash:free",
+            "a/model:free,b/model:free,c/model:free,d/model:free",
+        )
+        for fallback_models in invalid_lists:
+            with self.subTest(fallback_models=fallback_models):
+                with patch.dict(
+                    os.environ,
+                    {"OPENROUTER_FALLBACK_MODELS": fallback_models},
+                ), patch("app.requests.post") as post:
+                    response = self.client.post(
+                        "/api/chat",
+                        json={"messages": [{"role": "user", "content": "Olá"}]},
+                    )
+
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(
+                    response.json["code"],
+                    "fallback_configuration_error",
+                )
+                post.assert_not_called()
+
+    def test_model_fallback_chain_errors_remain_provider_errors(self):
+        upstream = Mock(ok=True, status_code=200)
+        upstream.json.return_value = {
+            "error": {
+                "code": 502,
+                "type": "provider_error",
+                "metadata": {"provider_name": "nvidia"},
+            }
+        }
+
+        with patch.dict(
+            os.environ,
+            {"OPENROUTER_FALLBACK_MODELS": "openrouter/free"},
+        ), patch("app.requests.post", return_value=upstream) as post:
+            response = self.client.post(
+                "/api/chat",
+                json={"messages": [{"role": "user", "content": "Olá"}]},
+            )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.json["code"], "provider_unavailable")
+        self.assertEqual(
+            post.call_args.kwargs["json"]["models"],
+            ["test/vision-model", "openrouter/free"],
         )
 
     def test_missing_api_key_returns_configuration_error(self):

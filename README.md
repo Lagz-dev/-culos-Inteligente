@@ -29,7 +29,7 @@ notepad .env
 .\.venv\Scripts\python.exe app.py
 ```
 
-No `.env`, configure `OPENROUTER_API_KEY` com sua chave. Não publique nem compartilhe esse arquivo. A variável `OPENROUTER_MODEL` pode ser configurada com o identificador de um modelo disponível que aceite texto e imagens; se omitida, é usado o modelo padrão do projeto.
+No `.env`, configure `OPENROUTER_API_KEY` com sua chave. Não publique nem compartilhe esse arquivo. A variável `OPENROUTER_MODEL` pode ser configurada com o identificador de um modelo disponível que aceite texto e imagens; se omitida, é usado o modelo padrão do projeto. Opcionalmente, `OPENROUTER_FALLBACK_MODELS` aceita até três IDs gratuitos separados por vírgulas (sufixo `:free` ou `openrouter/free`). Se configurada, a OpenRouter tenta esses modelos na ordem após o principal; sem ela, o comportamento atual permanece.
 
 Abra <http://127.0.0.1:5000>, conceda as permissões de câmera e microfone e toque uma vez em **Ativar B.E.A.**. Essa ativação inicial é necessária para iniciar os recursos protegidos pelo navegador e liberar a reprodução de áudio. Depois, use a palavra de ativação ou o botão de microfone.
 
@@ -66,6 +66,7 @@ Em **Environment Variables**, defina:
 |---|---|
 | `OPENROUTER_API_KEY` | Chave privada da OpenRouter, configurada somente no Render |
 | `OPENROUTER_MODEL` | ID de um modelo disponível com suporte a texto e imagem |
+| `OPENROUTER_FALLBACK_MODELS` | Opcional: até três IDs gratuitos, separados por vírgulas; use apenas modelos compatíveis com imagem |
 
 O endpoint `/` serve a interface `index1.html`. Após o deploy, verifique `/api/health` e teste uma pergunta na interface. Não inclua `.env` no repositório.
 

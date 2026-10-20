@@ -22,7 +22,11 @@ MAX_REQUEST_BYTES = 8 * 1024 * 1024
 CHAT_RATE_LIMIT = 10
 CHAT_RATE_WINDOW_SECONDS = 60
 MAX_COMPLETION_TOKENS = 600
+MAX_FALLBACK_MODELS = 3
 IMAGE_DATA_URL = re.compile(r"^data:image/jpeg;base64,[A-Za-z0-9+/]*={0,2}$")
+FREE_FALLBACK_MODEL = re.compile(
+    r"^(?:openrouter/free|[A-Za-z0-9][A-Za-z0-9._/-]{0,199}:free)$"
+)
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
@@ -46,6 +50,23 @@ def chat_rate_limited(client_ip):
             return True
         timestamps.append(now)
         return False
+
+
+def configured_fallback_models(primary_model):
+    configured_models = os.getenv("OPENROUTER_FALLBACK_MODELS", "").strip()
+    if not configured_models:
+        return []
+
+    fallback_models = [model.strip() for model in configured_models.split(",")]
+    if (
+        len(fallback_models) > MAX_FALLBACK_MODELS
+        or any(not FREE_FALLBACK_MODEL.fullmatch(model) for model in fallback_models)
+        or len(set(fallback_models)) != len(fallback_models)
+        or primary_model in fallback_models
+    ):
+        raise ValueError("OPENROUTER_FALLBACK_MODELS must contain distinct free model IDs.")
+
+    return fallback_models
 
 
 def classify_provider_error(status, details="", provider_status=None):
@@ -336,6 +357,19 @@ def chat():
             "model_configuration_error",
         )
 
+    try:
+        fallback_models = configured_fallback_models(model)
+    except ValueError:
+        app.logger.error(
+            "OPENROUTER_FALLBACK_MODELS inválida; informe até %s modelos gratuitos distintos.",
+            MAX_FALLBACK_MODELS,
+        )
+        return error_response(
+            "A lista de modelos alternativos não está configurada corretamente no servidor.",
+            503,
+            "fallback_configuration_error",
+        )
+
     client_ip = request.remote_addr or "unknown"
     if chat_rate_limited(client_ip):
         return error_response(
@@ -343,6 +377,15 @@ def chat():
             429,
             "request_rate_limited",
         )
+
+    provider_request = {
+        "max_tokens": MAX_COMPLETION_TOKENS,
+        "messages": messages,
+    }
+    if fallback_models:
+        provider_request["models"] = [model, *fallback_models]
+    else:
+        provider_request["model"] = model
 
     try:
         upstream = requests.post(
@@ -353,11 +396,7 @@ def chat():
                 "HTTP-Referer": request.url_root.rstrip("/"),
                 "X-Title": "B.E.A. - Assistente de Visão",
             },
-            json={
-                "model": model,
-                "max_tokens": MAX_COMPLETION_TOKENS,
-                "messages": messages,
-            },
+            json=provider_request,
             timeout=(10, 40),
         )
     except requests.Timeout as exc:
