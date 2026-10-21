@@ -7,6 +7,7 @@ A B.E.A. é uma aplicação de acessibilidade que combina câmera, interação p
 - Depois de uma ativação inicial e da concessão das permissões, a escuta de voz fica contínua. Diga **“Bia”** antes do pedido para evitar que conversas ambientes sejam enviadas por engano.
 - A B.E.A. pausa o reconhecimento enquanto processa uma solicitação ou reproduz áudio e o retoma ao terminar.
 - O botão **Silenciar/Reativar microfone** controla a escuta. Silenciar não interrompe uma resposta que já esteja sendo reproduzida.
+- O botão discreto **Ativar JARVIS/Voltar para BIA** alterna o tema visual e seleciona personalidade e perfil de voz para as próximas respostas; câmera, microfone e reconhecimento de fala permanecem compartilhados.
 - Com a câmera disponível, a aplicação envia uma imagem para análise inicialmente após 15 segundos e, depois, a cada 60 segundos. A leitura automática pausa quando a página fica oculta ou a câmera deixa de estar disponível.
 - A interface continua aceitando perguntas sobre o que está diante da câmera. Sem câmera, perguntas de voz podem seguir sem imagem.
 
@@ -57,7 +58,17 @@ A interface contém um **placeholder técnico**, não a arte oficial final. Ele 
 
 Ao preparar a arte definitiva, forneça um SVG original com camadas nomeadas para cabeça/cabelo, tronco, braços/mãos, olhos, sobrancelhas e boca (formas fechada e aberta). Substitua os desenhos dentro de `#biaMascot` preservando seu ID, os IDs/classes internos usados pelos seletores de animação, a viewBox e a indicação acessível de que a ilustração representa a BIA. Não incorpore uma imagem raster única se a animação facial e corporal continuar necessária.
 
-As expressões seguem os estados reais do app. A boca começa e para com os eventos da `speechSynthesis`; se o navegador enviar limites de palavras, eles selecionam poses visuais simples a partir do início da palavra. Sem esses eventos, há apenas um movimento suave enquanto a fala está efetivamente ativa. Isso não é sincronização fonética. Piscadas e olhares usam temporizadores espaçados e variáveis, gestos acontecem somente durante a fala, e as animações respeitam `prefers-reduced-motion` e a visibilidade da página.
+As expressões seguem os estados reais do app. A boca começa e para com os eventos da `speechSynthesis`; quando o navegador fornece limites de palavras, as vogais da palavra selecionam poses visuais aproximadas. Sem esses eventos, uma sequência temporizada de poses por palavra e pausas é usada apenas enquanto a fala está ativa. Como `speechSynthesis` não expõe o áudio reproduzido para análise de amplitude, isso não é sincronização fonética. Olhos, sobrancelhas, cabeça, tronco e braços têm movimentos coordenados; piscadas, olhares e microreações variam em intervalos não fixos, e a atividade é suspensa com a página oculta ou movimento reduzido.
+
+A personalidade é selecionada no backend a partir do modo ativo (`bia` ou `jarvis`), validado em cada solicitação. O prompt de sistema é mantido no servidor; instruções de sistema enviadas pelo navegador são ignoradas. A BIA mantém seu tom acolhedor e atento. JARVIS usa uma apresentação profissional, calma, precisa e objetiva, com foco em produtividade e tarefas técnicas. Ambos compartilham as orientações de idioma, precisão e segurança. A síntese de voz existente lê as respostas. Atualmente, cada requisição contém o contexto de sistema e a interação atual, sem histórico de conversa persistido.
+
+A voz é selecionada entre as vozes em português disponibilizadas pelo navegador e pelo sistema. BIA mantém a preferência feminina já usada pela aplicação. JARVIS prioriza uma voz cujo nome indique uma opção masculina; se não houver correspondência identificável, usa a seleção usual em português da BIA para preservar a fala. Se o navegador não listar vozes em português, a fala mantém o idioma `pt-BR` e pode usar a voz padrão do navegador. A voz e o modo são fixados por resposta, mesmo se houver alternância enquanto uma chamada ou fala estiver em andamento. A disponibilidade e o gênero percebido variam por dispositivo e não podem ser garantidos pela Web Speech API.
+
+O modo JARVIS exibe uma mascote masculina original em SVG dentro do mesmo palco da BIA. Cada ilustração mantém uma identidade visual própria, mas compartilha o estado de fala e os eventos de piscada; as poses da boca continuam aproximadas e usam os limites de fala ou a sequência de fallback já existentes.
+
+## Modo visual JARVIS
+
+A interface inicia no modo BIA e permite alternar entre `bia` e `jarvis` pelo botão no cabeçalho, sem recarregar a página. O modo é representado por `data-assistant-mode` no elemento principal e no `body`, centralizado pela função `setAssistantMode`, e é enviado ao backend nas novas solicitações. O tema JARVIS usa fundo azul-marinho, painéis translúcidos, contornos e detalhes ciano, mantendo as informações reais de estado da câmera e do sistema. A alternância visual e de personalidade não reinicia os controles compartilhados de câmera e voz.
 
 ## Hospedagem no Render
 

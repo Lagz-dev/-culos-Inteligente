@@ -62,6 +62,41 @@
     justify-content: center;
     align-items: center;
     padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+    transition: background-color .3s ease, color .3s ease;
+  }
+  body[data-assistant-mode="jarvis"] {
+    color-scheme: dark;
+    --color-lavender: #2479D8;
+    --color-lavender-deep: #22B8E8;
+    --color-lavender-soft: rgba(34, 184, 232, .12);
+    --color-peach: #38C9ED;
+    --color-peach-deep: #91E9F8;
+    --color-peach-vivid: #40CFF2;
+    --color-peach-soft: rgba(34, 184, 232, .12);
+    --color-cream: #0A1520;
+    --color-surface: rgba(15, 29, 42, .94);
+    --color-ink: #E8F5FC;
+    --color-muted: #A8BFCE;
+    --color-line: rgba(112, 190, 224, .2);
+    --color-camera: #07111B;
+    --color-overlay: rgba(220, 248, 255, .96);
+    --color-overlay-border: rgba(105, 213, 244, .68);
+    --color-overlay-border-soft: rgba(105, 213, 244, .3);
+    --color-overlay-glass: rgba(7, 17, 27, .92);
+    --color-camera-glass: rgba(7, 17, 27, .82);
+    --color-lavender-hover: #318CEB;
+    --color-error: #FF8C91;
+    --color-error-soft: rgba(255, 140, 145, .12);
+    --shadow-panel: 0 24px 70px rgba(0, 0, 0, .38), 0 0 35px rgba(32, 139, 205, .08);
+    --shadow-camera: 0 12px 32px rgba(0, 0, 0, .3);
+    --shadow-scan: 0 0 14px rgba(56, 201, 237, .52);
+    --shadow-lavender: 0 3px 14px rgba(24, 138, 220, .24);
+    --shadow-lavender-hover: 0 5px 20px rgba(24, 165, 235, .3);
+    --accent: #46D6F3;
+    background:
+      radial-gradient(ellipse at 82% 12%, rgba(27, 117, 170, .17), transparent 38%),
+      radial-gradient(ellipse at 8% 88%, rgba(20, 77, 125, .14), transparent 42%),
+      #07111B;
   }
 
   .hud {
@@ -84,6 +119,7 @@
     column-gap: clamp(28px, 5vw, 56px);
     row-gap: 18px;
     box-shadow: var(--shadow-panel);
+    transition: background-color .3s ease, border-color .3s ease, color .3s ease, box-shadow .3s ease;
   }
 
   .header { grid-area: header; text-align: center; padding-bottom: 8px; }
@@ -101,6 +137,9 @@
     flex: 0 1 auto;
     object-fit: contain;
   }
+  .mode-identity { display: none; }
+  .mode-identity-name,
+  .mode-identity-caption { display: block; }
   h1 {
     color: var(--color-ink);
     font-size: clamp(34px, 6vw, 48px);
@@ -123,6 +162,61 @@
     font-weight: 700;
     letter-spacing: .02em;
   }
+  .mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    margin-top: 9px;
+    padding: 6px 13px;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background-color .25s ease, border-color .25s ease, color .25s ease, transform .16s ease;
+  }
+  .mode-toggle:hover { transform: translateY(-1px); }
+  body[data-assistant-mode="jarvis"] .mode-toggle {
+    border-color: #48DDF4;
+    background: rgba(72, 221, 244, .1);
+    color: #48DDF4;
+  }
+  body[data-assistant-mode="jarvis"] .brand-logo { display: none; }
+  body[data-assistant-mode="jarvis"] .mode-identity {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 3px 0 3px 14px;
+    border-left: 2px solid #32C9F0;
+    text-align: left;
+  }
+  body[data-assistant-mode="jarvis"] .mode-identity-name {
+    color: #EAF9FF;
+    font-size: clamp(25px, 5vw, 34px);
+    font-weight: 700;
+    letter-spacing: .2em;
+    line-height: 1;
+  }
+  body[data-assistant-mode="jarvis"] .mode-identity-caption {
+    color: #83AFC3;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .15em;
+  }
+  body[data-assistant-mode="jarvis"] .subtitle {
+    background: rgba(12, 32, 45, .72);
+    border-color: rgba(97, 189, 221, .24);
+    color: #B4D3E1;
+  }
+  body[data-assistant-mode="jarvis"] .mode-toggle:focus-visible {
+    outline: 3px solid #58DDF8;
+    outline-offset: 3px;
+  }
   .subtitle::before {
     content: "";
     width: 8px;
@@ -141,6 +235,7 @@
     background: var(--color-camera);
     border: 1px solid var(--color-line);
     box-shadow: var(--shadow-camera);
+    transition: border-color .3s ease, box-shadow .3s ease, background-color .3s ease;
   }
   video {
     width: 100%; height: 100%;
@@ -266,6 +361,7 @@
     min-width: 0;
     min-height: 148px;
     pointer-events: none;
+    transition: background-color .3s ease, border-color .3s ease, box-shadow .3s ease;
   }
   .mascot-illustration {
     display: block;
@@ -276,6 +372,26 @@
     overflow: visible;
     filter: drop-shadow(0 5px 5px rgba(55, 53, 68, .08));
   }
+  .mascot-jarvis-illustration { display: none; }
+  body[data-assistant-mode="jarvis"] .mascot-bia-illustration { display: none; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration { display: block; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .jarvis-hair-back,
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .jarvis-hair-front { fill: #302820; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .jarvis-skin { fill: #E8C5A9; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .jarvis-suit { fill: #18354B; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .jarvis-suit-light { fill: #244D66; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .jarvis-trim { fill: #42CBEA; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .jarvis-iris { fill: #43BBD9; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-ink { fill: #183447; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-mouth-smile,
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-mouth-closed,
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-mouth-open,
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-mouth-wide,
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-mouth-round { fill: #8D4D59; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-mouth-smile,
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-mouth-closed { stroke: #8D4D59; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-mouth-smile { fill: none; }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration .mascot-mouth-closed { fill: none; }
   .mascot-skin { fill: #F2D2B7; }
   .mascot-hair { fill: #E9BE68; }
   .mascot-shirt { fill: var(--color-lavender); }
@@ -295,52 +411,81 @@
     transform-box: fill-box;
     transform-origin: center;
   }
-  .mascot-torso,
-  .mascot-head,
-  .mascot-pupils,
-  .mascot-eyes { transition: transform .4s cubic-bezier(.2,.75,.25,1); }
+  .mascot-torso {
+    --micro-torso-shift: 0px;
+    translate: 0 calc(var(--torso-shift, 0px) + var(--micro-torso-shift));
+    transform-origin: center bottom;
+    transition: translate .55s cubic-bezier(.2,.75,.25,1);
+  }
+  .mascot-head {
+    --micro-head-shift: 0px;
+    --micro-head-rotate: 0deg;
+    --gesture-head-shift: 0px;
+    --gesture-head-rotate: 0deg;
+    translate: 0 calc(var(--head-shift, 0px) + var(--micro-head-shift) + var(--gesture-head-shift));
+    rotate: calc(var(--head-rotate, 0deg) + var(--micro-head-rotate) + var(--gesture-head-rotate));
+    transition: translate .55s cubic-bezier(.2,.75,.25,1), rotate .55s cubic-bezier(.2,.75,.25,1);
+  }
+  .mascot-head { transform-box: view-box; transform-origin: 91px 58px; }
+  .mascot-pupils { transition: transform .32s cubic-bezier(.2,.75,.25,1); }
+  .mascot-eyes { scale: 1; transition: scale .35s cubic-bezier(.2,.75,.25,1); }
   .mascot-torso { animation: mascot-breathe 4.6s ease-in-out infinite; }
-  .mascot-eyes.is-blinking { animation: mascot-blink 145ms ease-in-out; }
+  .mascot-eyes.is-blinking { animation: mascot-blink 135ms ease-in-out; transform-origin: center; }
   .mascot-brow { transition: transform .3s cubic-bezier(.2,.75,.25,1); }
-  .mascot-mouth-smile { display: inline; }
+  .mascot-mouth-smile { display: inline; transition: transform .35s ease, stroke-width .35s ease; }
   .mascot-mouth-open,
   .mascot-mouth-wide,
   .mascot-mouth-round,
   .mascot-mouth-closed { display: none; }
   .mascot-arm-left,
-  .mascot-arm-right { transform-box: fill-box; transform-origin: center 12%; transition: transform .45s cubic-bezier(.2,.75,.25,1); }
-  #biaMascot[data-gaze="left"] .mascot-pupils { transform: translateX(-1.6px); }
-  #biaMascot[data-gaze="right"] .mascot-pupils { transform: translateX(1.6px); }
-  #biaMascot[data-mascot-state="listening"] .mascot-head { transform: rotate(-3deg) translateY(-1px); }
+  .mascot-arm-right { transform-box: fill-box; transform-origin: center 12%; transition: transform .58s cubic-bezier(.2,.75,.25,1); }
+  #biaMascot[data-gaze="left"] .mascot-pupils { transform: translate(-1.6px, 0); }
+  #biaMascot[data-gaze="right"] .mascot-pupils { transform: translate(1.6px, 0); }
+  #biaMascot[data-gaze="upper-right"] .mascot-pupils { transform: translate(1.2px, -1.1px); }
+  #biaMascot[data-gaze="lower-left"] .mascot-pupils { transform: translate(-1px, 1px); }
+  #biaMascot[data-gaze="upper-left"] .mascot-pupils { transform: translate(-1.2px, -1px); }
+  #biaMascot[data-mascot-state="listening"] { --head-rotate: -3deg; --head-shift: -1px; --torso-shift: 0px; }
   #biaMascot[data-mascot-state="listening"] .mascot-brow-left { transform: translateY(-2px) rotate(-4deg); }
   #biaMascot[data-mascot-state="listening"] .mascot-brow-right { transform: translateY(-2px) rotate(4deg); }
-  #biaMascot[data-mascot-state="thinking"] .mascot-head { transform: rotate(-4deg) translateY(-1px); }
+  #biaMascot[data-mascot-state="thinking"] { --head-rotate: -4deg; --head-shift: -1px; --torso-shift: 1px; }
   #biaMascot[data-mascot-state="thinking"] .mascot-brow-left { transform: translateY(-1px) rotate(5deg); }
   #biaMascot[data-mascot-state="thinking"] .mascot-brow-right { transform: translateY(-3px) rotate(-6deg); }
-  #biaMascot[data-mascot-state="observing"] .mascot-head { transform: rotate(2deg); }
+  #biaMascot[data-mascot-state="observing"] { --head-rotate: 2deg; --head-shift: 0px; --torso-shift: 0px; }
   #biaMascot[data-mascot-state="observing"] .mascot-brow { transform: translateY(-2px); }
+  #biaMascot[data-mascot-state="speaking"] { --head-rotate: 0deg; --head-shift: 0px; --torso-shift: -1px; }
   #biaMascot[data-mascot-state="speaking"] .mascot-mouth-smile { display: none; }
-  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="false"] .mascot-mouth-open {
-    display: inline;
-    animation: mascot-mouth 680ms ease-in-out infinite alternate;
-  }
-  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"] .mascot-mouth-closed { display: inline; }
-  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="open"] .mascot-mouth-closed,
-  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="wide"] .mascot-mouth-closed,
-  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="round"] .mascot-mouth-closed { display: none; }
-  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="open"] .mascot-mouth-open { display: inline; }
-  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="wide"] .mascot-mouth-wide { display: inline; }
-  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="round"] .mascot-mouth-round { display: inline; }
-  #biaMascot.is-gesturing .mascot-head { transform: translateY(-1px) rotate(1deg); }
-  #biaMascot.is-gesturing .mascot-arm-right { transform: rotate(-8deg) translateY(-2px); }
-  #biaMascot.is-gesturing .mascot-arm-left { transform: rotate(5deg) translateY(-1px); }
+  #biaMascot[data-mascot-state="speaking"] .mascot-mouth-closed { display: inline; }
+  #biaMascot[data-mascot-state="speaking"][data-mouth="open"] .mascot-mouth-closed,
+  #biaMascot[data-mascot-state="speaking"][data-mouth="wide"] .mascot-mouth-closed,
+  #biaMascot[data-mascot-state="speaking"][data-mouth="round"] .mascot-mouth-closed { display: none; }
+  #biaMascot[data-mascot-state="speaking"][data-mouth="open"] .mascot-mouth-open { display: inline; }
+  #biaMascot[data-mascot-state="speaking"][data-mouth="wide"] .mascot-mouth-wide { display: inline; }
+  #biaMascot[data-mascot-state="speaking"][data-mouth="round"] .mascot-mouth-round { display: inline; }
+  #biaMascot[data-mascot-state="speaking"][data-mouth="wide"] .mascot-brow { transform: translateY(-1px); }
+  #biaMascot[data-mascot-state="speaking"][data-mouth="round"] .mascot-brow-left { transform: translateY(-1px) rotate(2deg); }
+  #biaMascot[data-mascot-state="speaking"][data-mouth="round"] .mascot-brow-right { transform: translateY(-1px) rotate(-2deg); }
+  #biaMascot[data-mascot-state="speaking"][data-mouth="open"] .mascot-eyes { scale: 1.02; }
+  #biaMascot.is-gesturing { --gesture-head-shift: -1px; --gesture-head-rotate: 1deg; }
+  #biaMascot.is-gesturing[data-gesture="left"] .mascot-arm-left { transform: rotate(11deg) translateY(-2px); }
+  #biaMascot.is-gesturing[data-gesture="right"] .mascot-arm-right { transform: rotate(-11deg) translateY(-2px); }
+  #biaMascot.is-gesturing[data-gesture="welcome"] .mascot-arm-left { transform: rotate(8deg) translateY(-2px); }
+  #biaMascot.is-gesturing[data-gesture="welcome"] .mascot-arm-right { transform: rotate(-8deg) translateY(-2px); }
+  #biaMascot.is-micro-moving[data-micro-action="tilt"] { --micro-head-rotate: 2deg; --micro-head-shift: -1px; }
+  #biaMascot.is-micro-moving[data-micro-action="settle"] { --micro-torso-shift: 1px; }
   #biaMascot[data-mascot-state="speaking"] .mascot-torso { animation-duration: 2.6s; }
-  #biaMascot[data-mascot-state="happy"] .mascot-brow { transform: translateY(-2px); }
-  #biaMascot[data-mascot-state="happy"] .mascot-mouth-smile { stroke-width: 3.5; }
-  #biaMascot[data-mascot-state="happy"] .mascot-head { transform: translateY(-2px); }
+  #biaMascot[data-mascot-state="happy"] { --head-shift: -2px; --head-rotate: 0deg; --torso-shift: -1px; }
+  #biaMascot[data-expression="happy"] .mascot-brow { transform: translateY(-2px); }
+  #biaMascot[data-expression="happy"] .mascot-mouth-smile { stroke-width: 3.5; transform: scale(1.08); }
+  #biaMascot[data-expression="happy"] .mascot-eyes { scale: 1.04; }
   #biaMascot[data-mascot-state="error"] .mascot-brow-left { transform: rotate(6deg); }
   #biaMascot[data-mascot-state="error"] .mascot-brow-right { transform: rotate(-6deg); }
-  #biaMascot[data-mascot-state="error"] .mascot-head { transform: rotate(-2deg); }
+  #biaMascot[data-mascot-state="error"] { --head-rotate: -2deg; --head-shift: 0px; --torso-shift: 1px; }
+  #biaMascot[data-expression="attentive"] .mascot-eyes { scale: 1.035; }
+  #biaMascot[data-expression="curious"] .mascot-eyes { scale: 1.045; }
+  #biaMascot[data-expression="curious"] .mascot-brow-left { transform: translateY(-2px) rotate(5deg); }
+  #biaMascot[data-expression="curious"] .mascot-brow-right { transform: translateY(-1px) rotate(-4deg); }
+  #biaMascot[data-expression="confused"] .mascot-mouth-smile { transform: translateX(1px) scale(.82); }
+  #biaMascot[data-page-hidden="true"] * { animation-play-state: paused !important; }
 
   #stateLabel {
     color: var(--accent);
@@ -373,6 +518,105 @@
   body[data-state="speaking"] #status { background: var(--color-peach-soft); border-left-color: var(--color-peach-deep); }
   body[data-state="error"] #status { background: var(--color-error-soft); border-left-color: var(--color-error); }
   body[data-state="muted"] #status { border-left-color: var(--color-peach); }
+  body[data-assistant-mode="jarvis"] #status {
+    background: rgba(13, 29, 42, .76);
+    border-color: rgba(112, 190, 224, .22);
+    border-left-color: #278FC6;
+    box-shadow: inset 0 0 24px rgba(29, 105, 151, .08);
+  }
+  body[data-assistant-mode="jarvis"][data-state="listening"] #status,
+  body[data-assistant-mode="jarvis"][data-state="thinking"] #status {
+    background: rgba(16, 51, 68, .72);
+    border-left-color: #39CFF0;
+  }
+  body[data-assistant-mode="jarvis"][data-state="speaking"] #status,
+  body[data-assistant-mode="jarvis"][data-state="reconnecting"] #status {
+    background: rgba(14, 42, 59, .78);
+    border-left-color: #58DDF8;
+  }
+  body[data-assistant-mode="jarvis"][data-state="error"] #status {
+    background: rgba(79, 34, 46, .6);
+    border-color: rgba(255, 140, 145, .3);
+    border-left-color: var(--color-error);
+  }
+  body[data-assistant-mode="jarvis"] .hint { color: #91AFC0; }
+  body[data-assistant-mode="jarvis"] #stateLabel { color: #56D8F2; }
+  body[data-assistant-mode="jarvis"] .video-wrapper {
+    border-color: rgba(82, 194, 230, .28);
+    box-shadow: inset 0 0 34px rgba(12, 66, 94, .2), var(--shadow-camera);
+  }
+  body[data-assistant-mode="jarvis"] .corner { border-color: rgba(105, 213, 244, .68); }
+  body[data-assistant-mode="jarvis"] .tag {
+    border-color: rgba(105, 213, 244, .34);
+    background: rgba(6, 20, 31, .86);
+  }
+  body[data-assistant-mode="jarvis"] .tag i {
+    box-shadow: 0 0 9px rgba(64, 207, 242, .52);
+  }
+  body[data-assistant-mode="jarvis"] .scan {
+    background: #54DDF7;
+  }
+  body[data-assistant-mode="jarvis"] .thinking-label {
+    border: 1px solid rgba(105, 213, 244, .28);
+    box-shadow: 0 4px 22px rgba(0, 0, 0, .24);
+  }
+  body[data-assistant-mode="jarvis"] .mascot-stage {
+    border: 1px solid rgba(87, 180, 215, .16);
+    border-radius: 20px;
+    background: radial-gradient(ellipse at 50% 60%, rgba(34, 113, 150, .13), rgba(11, 25, 37, .28) 72%);
+    box-shadow: inset 0 0 28px rgba(33, 114, 151, .08);
+  }
+  body[data-assistant-mode="jarvis"] .mascot-jarvis-illustration {
+    filter: drop-shadow(0 7px 12px rgba(0, 0, 0, .28));
+  }
+  body[data-assistant-mode="jarvis"] .orb .core {
+    background: #38BFEA;
+    box-shadow: 0 0 0 8px rgba(40, 151, 207, .13), 0 0 20px rgba(38, 180, 230, .2);
+  }
+  body[data-assistant-mode="jarvis"][data-state="listening"] .orb .core {
+    background: #3BC9EE;
+    box-shadow: 0 0 0 8px rgba(40, 178, 218, .14), 0 0 24px rgba(38, 180, 230, .3);
+  }
+  body[data-assistant-mode="jarvis"] .orb .bars i {
+    background: #63DFF6;
+  }
+  body[data-assistant-mode="jarvis"][data-state="error"] .orb .core {
+    background: var(--color-error);
+    box-shadow: 0 0 0 8px var(--color-error-soft);
+  }
+  body[data-assistant-mode="jarvis"] .btn-main {
+    background: linear-gradient(135deg, #318CE0, #25B1D8);
+    color: #07111B;
+    border-color: rgba(113, 213, 243, .28);
+    transition: transform .16s ease, background .25s ease, border-color .25s ease, box-shadow .25s ease;
+  }
+  body[data-assistant-mode="jarvis"] .btn-main::before { background: #A7F3FF; }
+  body[data-assistant-mode="jarvis"] .btn-main:hover:not(:disabled) {
+    background: linear-gradient(135deg, #3D9BEB, #31BCE0);
+  }
+  body[data-assistant-mode="jarvis"] .btn-alt {
+    background: rgba(15, 34, 48, .9);
+    border-color: rgba(105, 183, 215, .3);
+    color: #D7ECF5;
+  }
+  body[data-assistant-mode="jarvis"] .btn-alt:hover:not(:disabled) {
+    background: rgba(24, 64, 84, .9);
+    border-color: rgba(85, 208, 239, .5);
+  }
+  body[data-assistant-mode="jarvis"] .btn:disabled {
+    background: #172632;
+    border-color: rgba(105, 183, 215, .18);
+    color: #8299A7;
+  }
+  body[data-assistant-mode="jarvis"] .btn:focus-visible,
+  body[data-assistant-mode="jarvis"] #status:focus-visible {
+    outline-color: #58DDF8;
+  }
+  body[data-assistant-mode="jarvis"] .hud {
+    border-color: rgba(96, 183, 218, .22);
+    background: rgba(11, 23, 34, .92);
+    backdrop-filter: blur(16px) saturate(115%);
+  }
   #status:focus-visible, .btn:focus-visible { outline: 3px solid var(--color-lavender-deep); outline-offset: 3px; }
   .hint {
     grid-area: hint;
@@ -430,9 +674,12 @@
   @keyframes ripple  { 0% { transform: scale(.55); opacity: .7; } 100% { transform: scale(1.3); opacity: 0; } }
   @keyframes breathe { 50% { transform: scale(1.12); } }
   @keyframes eq      { 0%, 100% { height: 8px; } 50% { height: 28px; } }
-  @keyframes mascot-breathe { 50% { transform: translateY(-1.5px) scale(1.005); } }
+  @keyframes mascot-breathe {
+    0%, 100% { transform: translateY(0) scale(1); }
+    34% { transform: translateY(-1.2px) scale(1.003); }
+    68% { transform: translateY(-.5px) scale(1.001); }
+  }
   @keyframes mascot-blink { 50% { transform: scaleY(.08); } }
-  @keyframes mascot-mouth { to { transform: scaleY(.58) scaleX(1.1); } }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -475,14 +722,19 @@
 </style>
 </head>
 
-<body data-state="off">
-<main class="hud">
+<body data-state="off" data-assistant-mode="bia">
+<main class="hud" id="app" data-assistant-mode="bia">
 
   <header class="header">
     <div class="brand">
       <img class="brand-logo" src="static/bia-logo.jpg" alt="Logo da B.E.A., com as letras bea em lavanda, azul claro e pêssego">
+      <div class="mode-identity" aria-hidden="true">
+        <span class="mode-identity-name">JARVIS</span>
+        <span class="mode-identity-caption">B.E.A. VISION ASSISTANT</span>
+      </div>
     </div>
     <div class="subtitle">Assistente de visão · Acessibilidade</div>
+    <button id="modeToggle" class="mode-toggle" type="button" aria-pressed="false">Ativar JARVIS</button>
   </header>
 
   <div class="video-wrapper">
@@ -507,29 +759,39 @@
     class="mascot-stage"
     id="biaMascot"
     data-mascot-state="idle"
+    data-expression="neutral"
     data-speech-boundaries="false"
     role="img"
     aria-label="Placeholder técnico da mascote BIA; a arte final ainda será criada."
   >
-    <svg class="mascot-illustration" viewBox="0 0 180 170" aria-hidden="true" focusable="false">
+    <svg class="mascot-illustration mascot-bia-illustration" viewBox="0 0 180 170" aria-hidden="true" focusable="false">
       <ellipse cx="91" cy="158" rx="53" ry="7" fill="#373544" opacity=".08"/>
+      <g id="bia-hair-back-layer" class="mascot-head">
+        <path id="bia-hair-back" class="mascot-hair" d="M91 6C67 6 48 20 44 42c-4 21 1 42-3 60-2 12-6 23-5 32 1 9 8 13 15 9 8-4 12-15 15-27l6-22c5 11 12 17 19 18 7-1 14-7 19-18l6 22c3 12 7 23 15 27 7 4 14 0 15-9 1-9-3-20-5-32-4-18 1-39-3-60C130 20 115 6 91 6z"/>
+      </g>
       <g id="bia-arms">
-        <path class="mascot-shirt mascot-arm-left" d="M63 94c-12 1-19 8-23 20l-9 28c-2 6 1 11 6 13 5 2 10-1 12-6l12-25 13-8z"/>
-        <path class="mascot-shirt mascot-arm-right" d="M119 94c12 1 19 8 23 20l9 28c2 6-1 11-6 13-5 2-10-1-12-6l-12-25-13-8z"/>
-        <path class="mascot-skin" d="M32 141c-4 3-5 8-2 12 3 4 9 4 13 1l7-8-6-8z"/>
-        <path class="mascot-skin" d="M150 141c4 3 5 8 2 12-3 4-9 4-13 1l-7-8 6-8z"/>
+        <path class="mascot-shirt mascot-arm-left" d="M67 94c-10 1-17 8-20 20l-7 27c-2 6 1 11 6 13 4 2 8-1 10-6l10-25 10-8z"/>
+        <path class="mascot-shirt mascot-arm-right" d="M115 94c10 1 17 8 20 20l7 27c2 6-1 11-6 13-4 2-8-1-10-6l-10-25-10-8z"/>
+        <path class="mascot-skin" d="M40 140c-4 3-5 8-2 12 3 4 8 4 12 1l7-8-6-8z"/>
+        <path class="mascot-skin" d="M142 140c4 3 5 8 2 12-3 4-8 4-12 1l-7-8 6-8z"/>
       </g>
       <g id="bia-torso" class="mascot-torso">
-        <path class="mascot-shirt" d="M65 91c-12 2-19 9-22 22l-5 44c17 5 34 7 53 7s36-2 53-7l-5-44c-3-13-10-20-22-22l-11-5H76z"/>
-        <path d="M77 89c2 10 7 15 14 15s12-5 14-15l-6-5H83z" fill="#E7D9E8"/>
+        <path class="mascot-shirt" d="M68 91c-11 2-18 9-20 22l-4 44c15 5 31 7 47 7s32-2 47-7l-4-44c-2-13-9-20-20-22l-9-5H77z"/>
+        <path d="M78 89c2 10 6 15 13 15s11-5 13-15l-5-5H83z" fill="#E7D9E8"/>
         <path class="mascot-accent" d="m88 105 3 4 3-4 3 27-6 6-6-6z"/>
       </g>
       <g id="bia-head" class="mascot-head">
-        <circle class="mascot-hair" cx="124" cy="27" r="14"/>
-        <circle cx="124" cy="27" r="7" fill="#D5A94F"/>
         <path class="mascot-hair" d="M59 48c0-22 14-36 33-36 20 0 33 14 33 36v25H59z"/>
         <path class="mascot-skin" d="M62 49c0-19 12-31 30-31s30 12 30 31v21c0 20-13 34-30 34S62 90 62 70z"/>
-        <path class="mascot-hair" d="M58 55c-3-22 9-39 28-44 19-5 39 3 46 21-9-1-17-6-22-13-10 9-25 13-44 11l-7 27z"/>
+        <path class="mascot-hair" d="M59 52C57 33 68 17 84 12c19-6 38 2 46 19 3 6 4 12 3 19-9-2-17-7-23-14-10 8-24 12-40 10-4 1-8 3-11 6z"/>
+        <g id="bia-hair-front" class="mascot-hair">
+          <path d="M72 32C61 35 53 45 51 59c-2 15 1 29-2 42-2 11-6 20-6 26 0 7 6 10 12 7 8-4 12-13 14-25l4-24c2-19 3-38 16-52-7 2-12 2-17-1z"/>
+          <path d="M72 32C61 35 53 45 51 59c-2 15 1 29-2 42-2 11-6 20-6 26 0 7 6 10 12 7 8-4 12-13 14-25l4-24c2-19 3-38 16-52-7 2-12 2-17-1z" transform="translate(182 0) scale(-1 1)"/>
+        </g>
+        <g id="bia-hair-locks" fill="none" stroke="#D5A94F" stroke-linecap="round" stroke-width="1.2" opacity=".55">
+          <path d="M61 57c-2 18 0 35-4 54"/>
+          <path d="M61 57c-2 18 0 35-4 54" transform="translate(182 0) scale(-1 1)"/>
+        </g>
         <path class="mascot-blush" d="M66 78c4-4 10-4 14 0-3 4-10 5-14 0zm37 0c4-4 10-4 14 0-3 4-10 5-14 0z"/>
         <g class="mascot-brow mascot-brow-left"><path d="M72 54c4-2.5 9-2.5 13 0" fill="none" stroke="#8A684D" stroke-width="1.8" stroke-linecap="round"/></g>
         <g class="mascot-brow mascot-brow-right"><path d="M99 54c4-2.5 9-2.5 13 0" fill="none" stroke="#8A684D" stroke-width="1.8" stroke-linecap="round"/></g>
@@ -549,6 +811,53 @@
         <ellipse class="mascot-mouth-open" cx="91.5" cy="87" rx="5.5" ry="4.5" fill="#9E5860"/>
         <path class="mascot-mouth-wide" d="M85 85c4 2 9 2 13 0v5c-3 4-10 4-13 0z" fill="#9E5860"/>
         <ellipse class="mascot-mouth-round" cx="91.5" cy="87" rx="3.3" ry="5.2" fill="#9E5860"/>
+      </g>
+    </svg>
+    <svg class="mascot-illustration mascot-jarvis-illustration" viewBox="0 0 180 170" aria-hidden="true" focusable="false">
+      <ellipse cx="91" cy="158" rx="53" ry="7" fill="#020A10" opacity=".3"/>
+      <g class="mascot-head">
+        <path class="jarvis-hair-back" d="M58 53C53 34 60 17 76 11c15-6 34-2 43 10 8 11 9 26 4 42l-9-2-45 1z"/>
+      </g>
+      <g>
+        <path class="jarvis-suit mascot-arm-left" d="M68 96c-12 2-19 10-22 22l-7 24c-2 6 1 11 6 13 5 2 9-2 11-7l10-24 11-9z"/>
+        <path class="jarvis-suit mascot-arm-right" d="M114 96c12 2 19 10 22 22l7 24c2 6-1 11-6 13-5 2-9-2-11-7l-10-24-11-9z"/>
+        <path class="jarvis-skin" d="M40 140c-4 3-5 8-2 12 3 4 8 4 12 1l7-8-6-8z"/>
+        <path class="jarvis-skin" d="M142 140c4 3 5 8 2 12-3 4-8 4-12 1l-7-8 6-8z"/>
+      </g>
+      <g class="mascot-torso">
+        <path class="jarvis-suit" d="M68 93c-11 2-18 9-20 21l-4 43c15 6 31 9 47 9s32-3 47-9l-4-43c-2-12-9-19-20-21l-10-6H78z"/>
+        <path class="jarvis-suit-light" d="m78 88 13 15 13-15-5-5H83z"/>
+        <path class="jarvis-trim" d="m90 104 1 0 3 28-3 4-3-4z"/>
+        <path d="M52 112c8-7 14-10 20-11l4 5-9 28-17-6zm78 0c-8-7-14-10-20-11l-4 5 9 28 17-6z" fill="#10283A"/>
+        <path d="M65 102l7 4m43-4-7 4" fill="none" stroke="#55CDE8" stroke-width="1.4" opacity=".8"/>
+      </g>
+      <g class="mascot-head">
+        <path class="jarvis-skin" d="M62 48c0-19 12-31 29-31s29 12 29 31v22c0 20-13 34-29 34S62 90 62 70z"/>
+        <path class="jarvis-skin" d="M59 53c-5 0-7 4-6 9 1 5 4 8 9 8m61-17c5 0 7 4 6 9-1 5-4 8-9 8" fill="none" stroke="#D5AC91" stroke-width="3"/>
+        <path class="jarvis-hair-front" d="M59 53c-4-18 4-35 18-42 14-7 33-3 41 9 5 8 6 17 5 27-7-2-13-8-17-15-10 7-23 11-42 10l-5 11z"/>
+        <path class="jarvis-hair-front" d="M60 34c10 2 22 0 33-5-7 7-17 12-30 13z" fill="#453629"/>
+        <path d="M72 54c4-2.5 9-2.5 13 0m14 0c4-2.5 9-2.5 13 0" fill="none" stroke="#49382D" stroke-width="1.8" stroke-linecap="round"/>
+        <g class="mascot-eyes">
+          <g class="mascot-pupils">
+            <ellipse class="jarvis-eye-white" cx="80" cy="66" rx="6.1" ry="7.4" fill="#F7F8F5"/>
+            <ellipse class="jarvis-eye-white" cx="105" cy="66" rx="6.1" ry="7.4" fill="#F7F8F5"/>
+            <ellipse class="mascot-ink" cx="81" cy="66" rx="3.3" ry="4.7" fill="#183447"/>
+            <ellipse class="mascot-ink" cx="104" cy="66" rx="3.3" ry="4.7" fill="#183447"/>
+            <circle class="jarvis-iris" cx="82" cy="65" r="1.5"/>
+            <circle class="jarvis-iris" cx="105" cy="65" r="1.5"/>
+            <circle cx="82" cy="64" r=".8" fill="#FFFFFF"/>
+            <circle cx="105" cy="64" r=".8" fill="#FFFFFF"/>
+          </g>
+        </g>
+        <path d="M91 71c-.8 3-1.4 5-1 6 .8 1 2.2 1 3 0" fill="none" stroke="#C89578" stroke-width="1.5" stroke-linecap="round"/>
+        <path class="mascot-mouth-smile" d="M84 85c4 5 12 5 16 0" fill="none" stroke="#8D4D59" stroke-width="2.5" stroke-linecap="round"/>
+        <path class="mascot-mouth-closed" d="M88 87h7" fill="none" stroke="#8D4D59" stroke-width="2.4" stroke-linecap="round"/>
+        <ellipse class="mascot-mouth-open" cx="91.5" cy="87" rx="5" ry="4.4" fill="#8D4D59"/>
+        <path class="mascot-mouth-wide" d="M85 85c4 2 9 2 13 0v5c-3 4-10 4-13 0z" fill="#8D4D59"/>
+        <ellipse class="mascot-mouth-round" cx="91.5" cy="87" rx="3.2" ry="5" fill="#8D4D59"/>
+        <path class="jarvis-suit-light" d="M78 99c4 4 9 6 13 6s9-2 13-6l-5-7H83z"/>
+        <path d="m87 106 4 4 4-4 2 22-6 5-6-5z" fill="#1BA7CB"/>
+        <path d="M88 108h6" stroke="#A5EEFA" stroke-width="1" opacity=".75"/>
       </g>
     </svg>
   </figure>
@@ -580,9 +889,6 @@
     environmentScanIntervalMs: 60000,
     recognitionRestartMs: 700
   };
-  const SYSTEM_PROMPT =
-    "Você é a BEA, assistente de voz feminina estilo JARVIS para óculos de acessibilidade. " +
-    "Responda de forma extremamente curta, direta e natural em Português do Brasil para leitura em voz alta.";
   const WAKE_ONE = /\b(bia|bea|via)\b/;
   const WAKE_ALL = /\b(bia|bea|via)\b/g;
 
@@ -590,19 +896,40 @@
   const $ = (id) => document.getElementById(id);
   const video = $("video"), statusEl = $("status"), stateLabel = $("stateLabel");
   const mascot = $("biaMascot");
+  const app = $("app"), modeToggle = $("modeToggle");
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
   const startBtn = $("startSystem"), muteMicBtn = $("muteMic"), hint = $("hint");
+  const ASSISTANT_MODES = { BIA: "bia", JARVIS: "jarvis" };
   const MASCOT_APP_STATES = {
     off: "idle",
     muted: "idle",
     listening: "listening",
     thinking: "thinking",
-    speaking: "idle",
     reconnecting: "idle",
     error: "error"
+  };
+  const MASCOT_EXPRESSIONS = {
+    idle: "neutral",
+    listening: "attentive",
+    thinking: "curious",
+    speaking: "speaking",
+    happy: "happy",
+    observing: "curious",
+    error: "confused"
+  };
+  const MASCOT_BASE_GAZE = {
+    idle: "center",
+    listening: "center",
+    thinking: "upper-right",
+    speaking: "center",
+    happy: "center",
+    observing: "left",
+    error: "lower-left"
   };
 
   /* ================= ESTADO ================= */
   let stream = null, recognition = null, wakeLock = null;
+  let assistantMode = ASSISTANT_MODES.BIA;
   let systemOn = false;       // sistema iniciado
   let busy = false;           // processando ou falando (reconhecimento pausado)
   let micBlocked = false;     // permissão de microfone negada
@@ -611,14 +938,42 @@
   let restartTimer = null;
   let environmentScanTimer = null;
   const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-  let mascotBlinkTimer = null, mascotGazeTimer = null, mascotGestureTimer = null;
+  let mascotBlinkTimer = null, mascotBlinkReleaseTimer = null, mascotSecondBlinkTimer = null;
+  let mascotGazeTimer = null, mascotGazeResetTimer = null, mascotGestureTimer = null;
+  let mascotGestureReleaseTimer = null, mascotMicroTimer = null, mascotMicroResetTimer = null;
 
   function setState(state, label) {
     document.body.dataset.state = state;
     stateLabel.textContent = label;
-    if (MASCOT_APP_STATES[state]) setMascotState(MASCOT_APP_STATES[state]);
+    if (MASCOT_APP_STATES[state]) {
+      const transientEmotion = mascotEmotionTimer !== null &&
+        ["happy", "error"].includes(mascot.dataset.mascotState);
+      const settlingState = ["listening", "reconnecting", "muted"].includes(state);
+      if (!transientEmotion || !settlingState) setMascotState(MASCOT_APP_STATES[state]);
+    }
   }
   function showStatus(text) { statusEl.textContent = text; }
+  function setAssistantMode(mode) {
+    if (!Object.values(ASSISTANT_MODES).includes(mode)) {
+      throw new Error(`Modo de assistente inválido: ${mode}`);
+    }
+    assistantMode = mode;
+    document.body.dataset.assistantMode = mode;
+    app.dataset.assistantMode = mode;
+    const isJarvis = mode === ASSISTANT_MODES.JARVIS;
+    modeToggle.textContent = isJarvis ? "Voltar para BIA" : "Ativar JARVIS";
+    modeToggle.setAttribute("aria-pressed", String(isJarvis));
+    themeColorMeta.setAttribute("content", isJarvis ? "#07111B" : "#F7F4F0");
+    mascot.setAttribute("aria-label", isJarvis
+      ? "Mascote ilustrado JARVIS, com cabelo castanho escuro, olhos ciano e traje azul-marinho."
+      : "Placeholder técnico da mascote BIA; a arte final ainda será criada.");
+    updateMascotMotion();
+  }
+  function activeMascotIllustration() {
+    return mascot.querySelector(assistantMode === ASSISTANT_MODES.JARVIS
+      ? ".mascot-jarvis-illustration"
+      : ".mascot-bia-illustration");
+  }
   function buzz(pattern) { try { navigator.vibrate && navigator.vibrate(pattern); } catch (e) {} }
   function createRequestId() {
     const bytes = new Uint8Array(16);
@@ -648,84 +1003,206 @@
   let voices = [];
   let speakToken = 0, keepAlive = null, watchdog = null, speechStartTimer = null;
   let activeSpeechResolve = null;
-  let mascotEmotionTimer = null, speechBoundaryTimer = null;
+  let mascotEmotionTimer = null, speechBoundaryTimer = null, mascotSpeechTimer = null;
+  let mascotSpeechSequence = [], mascotSpeechSequenceIndex = 0, mascotSpeechSequenceToken = 0;
+  let activeMascotSpeechText = "";
 
   const randomDelay = (minimum, maximum) =>
     Math.round(minimum + Math.random() * (maximum - minimum));
 
+  function canMascotAnimate() {
+    return !reducedMotionQuery.matches && !document.hidden;
+  }
+
+  function mascotCanBlink() {
+    return canMascotAnimate() &&
+      ["idle", "listening", "thinking", "observing", "speaking", "happy"].includes(mascot.dataset.mascotState);
+  }
+
+  function blinkMascot() {
+    if (!mascotCanBlink()) return;
+    const eyes = activeMascotIllustration().querySelector(".mascot-eyes");
+    eyes.classList.add("is-blinking");
+    clearTimeout(mascotBlinkReleaseTimer);
+    mascotBlinkReleaseTimer = setTimeout(() => eyes.classList.remove("is-blinking"), 135);
+  }
+
   function scheduleMascotBlink() {
     clearTimeout(mascotBlinkTimer);
-    const state = mascot.dataset.mascotState;
-    if (reducedMotionQuery.matches || document.hidden ||
-      !["idle", "listening", "thinking", "observing"].includes(state)) return;
+    clearTimeout(mascotSecondBlinkTimer);
+    if (!mascotCanBlink()) return;
 
     mascotBlinkTimer = setTimeout(() => {
-      const eyes = mascot.querySelector(".mascot-eyes");
-      eyes.classList.remove("is-blinking");
-      void eyes.getBoundingClientRect();
-      eyes.classList.add("is-blinking");
-      setTimeout(() => eyes.classList.remove("is-blinking"), 180);
-
+      blinkMascot();
       if (Math.random() < 0.12) {
-        mascotBlinkTimer = setTimeout(() => {
-          eyes.classList.remove("is-blinking");
-          void eyes.getBoundingClientRect();
-          eyes.classList.add("is-blinking");
-          setTimeout(() => eyes.classList.remove("is-blinking"), 180);
+        mascotSecondBlinkTimer = setTimeout(() => {
+          blinkMascot();
           scheduleMascotBlink();
-        }, 190);
+        }, 250);
       } else {
         scheduleMascotBlink();
       }
     }, randomDelay(2600, 5700));
   }
 
+  function baseGazeForState(state) {
+    return MASCOT_BASE_GAZE[state] || "center";
+  }
+
   function scheduleMascotGaze() {
     clearTimeout(mascotGazeTimer);
-    if (reducedMotionQuery.matches || document.hidden ||
-      mascot.dataset.mascotState !== "idle") return;
+    clearTimeout(mascotGazeResetTimer);
+    const state = mascot.dataset.mascotState;
+    if (!canMascotAnimate() || !["idle", "thinking", "observing"].includes(state)) return;
 
     mascotGazeTimer = setTimeout(() => {
-      const gaze = Math.random() < 0.5 ? "left" : "right";
-      mascot.dataset.gaze = gaze;
-      setTimeout(() => {
-        if (mascot.dataset.mascotState === "idle") mascot.dataset.gaze = "center";
-      }, randomDelay(450, 900));
-      scheduleMascotGaze();
-    }, randomDelay(3200, 6800));
+      const directions = state === "thinking"
+        ? ["upper-right", "upper-left", "center"]
+        : state === "observing"
+          ? ["left", "right", "center"]
+          : ["left", "right", "center"];
+      const next = directions[Math.floor(Math.random() * directions.length)];
+      mascot.dataset.gaze = next;
+      mascotGazeResetTimer = setTimeout(() => {
+        mascot.dataset.gaze = baseGazeForState(mascot.dataset.mascotState);
+        scheduleMascotGaze();
+      }, randomDelay(500, 1050));
+    }, state === "thinking" ? randomDelay(2600, 4700) : randomDelay(3400, 7200));
   }
 
   function scheduleMascotGesture() {
     clearTimeout(mascotGestureTimer);
-    if (reducedMotionQuery.matches || document.hidden ||
-      mascot.dataset.mascotState !== "speaking") return;
+    if (!canMascotAnimate() || mascot.dataset.mascotState !== "speaking") return;
 
     mascotGestureTimer = setTimeout(() => {
+      mascot.dataset.gesture = Math.random() < 0.5 ? "left" : "right";
       mascot.classList.add("is-gesturing");
-      setTimeout(() => mascot.classList.remove("is-gesturing"), randomDelay(380, 620));
+      mascotGestureReleaseTimer = setTimeout(() => {
+        mascot.classList.remove("is-gesturing");
+        delete mascot.dataset.gesture;
+      }, randomDelay(620, 980));
       scheduleMascotGesture();
-    }, randomDelay(1200, 2600));
+    }, randomDelay(1600, 3400));
+  }
+
+  function scheduleMascotMicroMotion() {
+    clearTimeout(mascotMicroTimer);
+    const state = mascot.dataset.mascotState;
+    if (!canMascotAnimate() || !["idle", "thinking"].includes(state)) return;
+
+    mascotMicroTimer = setTimeout(() => {
+      const action = Math.random() < 0.65 ? "tilt" : "settle";
+      mascot.dataset.microAction = action;
+      mascot.classList.add("is-micro-moving");
+      mascotMicroResetTimer = setTimeout(() => {
+        mascot.classList.remove("is-micro-moving");
+        delete mascot.dataset.microAction;
+        scheduleMascotMicroMotion();
+      }, randomDelay(560, 920));
+    }, state === "thinking" ? randomDelay(2700, 5000) : randomDelay(4300, 8500));
+  }
+
+  function clearMascotSpeechMotion() {
+    clearTimeout(mascotSpeechTimer);
+    clearTimeout(speechBoundaryTimer);
+    mascotSpeechTimer = null;
+    speechBoundaryTimer = null;
+  }
+
+  function mouthPosesForWord(word) {
+    const vowels = word.match(/[aeiouáéíóúâêôãõ]+/gi) || [];
+    const poses = vowels.map((group) => {
+      const vowel = group.toLocaleLowerCase("pt-BR");
+      if (/[eiéíê]/.test(vowel)) return "wide";
+      if (/[ouóúô]/.test(vowel)) return "round";
+      return "open";
+    });
+    return poses.filter((pose, index) => index === 0 || pose !== poses[index - 1]);
+  }
+
+  function mouthPoseForWord(word) {
+    const poses = mouthPosesForWord(word);
+    return poses[Math.floor(poses.length / 2)] || "closed";
+  }
+
+  function scheduleFallbackMouthPoses(token, poses, index, duration) {
+    if (token !== speakToken || mascot.dataset.mascotState !== "speaking" ||
+      document.hidden || mascot.dataset.speechBoundaries === "true") return;
+    if (index >= poses.length) {
+      mascot.dataset.mouth = "closed";
+      mascotSpeechTimer = setTimeout(() => scheduleFallbackMouth(token), 45);
+      return;
+    }
+    mascot.dataset.mouth = poses[index];
+    mascotSpeechTimer = setTimeout(() => {
+      scheduleFallbackMouthPoses(token, poses, index + 1, duration);
+    }, duration);
+  }
+
+  function scheduleFallbackMouth(token) {
+    if (token !== speakToken || mascot.dataset.mascotState !== "speaking" ||
+      document.hidden || mascot.dataset.speechBoundaries === "true") return;
+
+    const segment = mascotSpeechSequence[mascotSpeechSequenceIndex++];
+    if (!segment) {
+      mascot.dataset.mouth = "closed";
+      return;
+    }
+    if (/^[,.!?;:…]+$/.test(segment)) {
+      mascot.dataset.mouth = "closed";
+      const pause = /[.!?…]/.test(segment) ? 300 : 150;
+      mascotSpeechTimer = setTimeout(() => scheduleFallbackMouth(token), pause);
+      return;
+    }
+
+    const poses = mouthPosesForWord(segment);
+    if (!poses.length) {
+      mascot.dataset.mouth = "closed";
+      mascotSpeechTimer = setTimeout(() => scheduleFallbackMouth(token), 70);
+      return;
+    }
+    const duration = Math.max(140, Math.min(370, 105 + segment.length * 28)) / poses.length;
+    scheduleFallbackMouthPoses(token, poses, 0, duration);
+  }
+
+  function startFallbackMouth(text, token) {
+    clearTimeout(mascotSpeechTimer);
+    mascotSpeechSequence = text.match(/[A-Za-zÀ-ÿ0-9'’-]+|[,.!?;:…]+/g) || [];
+    mascotSpeechSequenceIndex = 0;
+    mascotSpeechSequenceToken = token;
+    scheduleFallbackMouth(token);
   }
 
   function updateMascotMotion() {
     clearTimeout(mascotBlinkTimer);
+    clearTimeout(mascotBlinkReleaseTimer);
+    clearTimeout(mascotSecondBlinkTimer);
     clearTimeout(mascotGazeTimer);
+    clearTimeout(mascotGazeResetTimer);
     clearTimeout(mascotGestureTimer);
-    mascot.querySelector(".mascot-eyes").classList.remove("is-blinking");
-    mascot.dataset.gaze = "center";
+    clearTimeout(mascotGestureReleaseTimer);
+    clearTimeout(mascotMicroTimer);
+    clearTimeout(mascotMicroResetTimer);
+    activeMascotIllustration().querySelector(".mascot-eyes").classList.remove("is-blinking");
+    mascot.dataset.pageHidden = String(document.hidden);
+    mascot.dataset.gaze = baseGazeForState(mascot.dataset.mascotState);
     mascot.classList.remove("is-gesturing");
+    mascot.classList.remove("is-micro-moving");
+    delete mascot.dataset.gesture;
+    delete mascot.dataset.microAction;
     scheduleMascotBlink();
     scheduleMascotGaze();
     scheduleMascotGesture();
+    scheduleMascotMicroMotion();
   }
 
   function setMascotState(state) {
     if (mascot.dataset.mascotState === state) return;
     clearTimeout(mascotEmotionTimer);
     mascotEmotionTimer = null;
-    clearTimeout(speechBoundaryTimer);
-    speechBoundaryTimer = null;
+    clearMascotSpeechMotion();
     mascot.dataset.mascotState = state;
+    mascot.dataset.expression = MASCOT_EXPRESSIONS[state] || "neutral";
     mascot.dataset.speechBoundaries = "false";
     delete mascot.dataset.mouth;
     updateMascotMotion();
@@ -736,12 +1213,27 @@
   }
 
   function showMascotHappyMoment() {
+    clearTimeout(mascotEmotionTimer);
     setMascotState("happy");
-    mascot.classList.add("is-gesturing");
-    setTimeout(() => mascot.classList.remove("is-gesturing"), 520);
+    if (canMascotAnimate()) {
+      mascot.dataset.gesture = "welcome";
+      mascot.classList.add("is-gesturing");
+      mascotGestureReleaseTimer = setTimeout(() => {
+        mascot.classList.remove("is-gesturing");
+        delete mascot.dataset.gesture;
+      }, 700);
+    }
     mascotEmotionTimer = setTimeout(() => {
       if (mascot.dataset.mascotState === "happy") restoreMascotState();
-    }, 700);
+    }, randomDelay(1050, 1450));
+  }
+
+  function showMascotErrorMoment() {
+    clearTimeout(mascotEmotionTimer);
+    setMascotState("error");
+    mascotEmotionTimer = setTimeout(() => {
+      if (mascot.dataset.mascotState === "error") restoreMascotState();
+    }, randomDelay(900, 1250));
   }
 
   if (typeof reducedMotionQuery.addEventListener === "function") {
@@ -763,6 +1255,7 @@
 
   const FEMALE_VOICE = /francisca|luciana|maria|camila|bruna|fernanda|joana|female|feminina|woman/i;
   const MALE_VOICE = /(^|[\s_-])(male|masculino|man)([\s_-]|$)/i;
+  const JARVIS_MALE_VOICE = /(^|[\s_-])(male|masculino|man|daniel|antonio|andré|andre|ricardo|lucas|thiago|tiago|felipe|joão|joao|bruno|rafael|gustavo|pedro)([\s_-]|$)/i;
 
   function waitForVoices() {
     loadVoices();
@@ -797,18 +1290,34 @@
     });
   }
 
-  function pickVoice() {
+  function portugueseVoices() {
     const brazilianPortuguese = voices.filter((v) => /^pt[-_]br$/i.test(v.lang));
-    const portuguese = brazilianPortuguese.length
+    return brazilianPortuguese.length
       ? brazilianPortuguese
       : voices.filter((v) => /^pt(?:[-_]|$)/i.test(v.lang));
+  }
+
+  function voiceScore(voice) {
+    let value = 0;
+    if (/natural|neural|online|premium/i.test(voice.name)) value += 100;
+    if (!voice.localService) value += 15;
+    if (/google|microsoft/i.test(voice.name)) value += 10;
+    return value;
+  }
+
+  function pickVoice(mode = assistantMode) {
+    const portuguese = portugueseVoices();
+    if (mode === ASSISTANT_MODES.JARVIS) {
+      const masculineVoices = portuguese.filter((voice) => JARVIS_MALE_VOICE.test(voice.name));
+      if (masculineVoices.length) {
+        return masculineVoices.sort((a, b) => voiceScore(b) - voiceScore(a))[0];
+      }
+    }
+
     const score = (v) => {
       let value = FEMALE_VOICE.test(v.name) ? 500 : 0;
       if (MALE_VOICE.test(v.name)) value -= 500;
-      if (/natural|neural|online|premium/i.test(v.name)) value += 100;
-      if (!v.localService) value += 15;
-      if (/google|microsoft/i.test(v.name)) value += 10;
-      return value;
+      return value + voiceScore(v);
     };
     return portuguese.sort((a, b) => score(b) - score(a))[0] || null;
   }
@@ -864,6 +1373,8 @@
     speakToken++;
     clearInterval(keepAlive); clearTimeout(watchdog);
     clearTimeout(speechStartTimer);
+    clearMascotSpeechMotion();
+    activeMascotSpeechText = "";
     if (mascot.dataset.mascotState === "speaking") setMascotState("idle");
     if (hasTTS) window.speechSynthesis.cancel();
     if (activeSpeechResolve) {
@@ -874,8 +1385,9 @@
   }
 
   // Fala o texto e, ao terminar, volta a escutar
-  function speak(text, onStart = null, onComplete = null) {
+  function speak(text, onStart = null, onComplete = null, mode = assistantMode) {
     return new Promise((resolve) => {
+      const speechMode = mode;
       showStatus("BEA: " + text);
       busy = true;
       stopRecognition();
@@ -886,6 +1398,9 @@
         if (token !== speakToken) return;
         clearInterval(keepAlive); clearTimeout(watchdog);
         clearTimeout(speechStartTimer);
+        clearMascotSpeechMotion();
+        activeMascotSpeechText = "";
+        mascot.dataset.mouth = "closed";
         if (activeSpeechResolve === resolve) activeSpeechResolve = null;
         if ($("biaMascot").dataset.mascotState === "speaking") setMascotState("idle");
         resumeListening();
@@ -898,6 +1413,7 @@
 
       setState("speaking", "Falando…");
       const chunks = chunkText(text);
+      let voice = null;
       let i = 0, started = false;
 
       const next = () => {
@@ -906,37 +1422,42 @@
         const u = new SpeechSynthesisUtterance(chunks[i++]);
         u.lang = "pt-BR";
         u.rate = 0.96;
-        u.pitch = 1.03;
+        u.pitch = speechMode === ASSISTANT_MODES.JARVIS ? 1 : 1.03;
         u.volume = 1;
-        const v = pickVoice();
-        if (v) {
-          u.voice = v;
-        }
+        if (voice) u.voice = voice;
         u.onstart = () => {
+          if (token !== speakToken) return;
           started = true;
           setMascotState("speaking");
+          activeMascotSpeechText = u.text;
+          mascot.dataset.speechBoundaries = "false";
+          mascot.dataset.mouth = "closed";
+          startFallbackMouth(u.text, token);
           if (typeof onStart === "function") onStart();
         };
         u.onboundary = (event) => {
           if (token !== speakToken || (event.name && event.name !== "word") ||
             !Number.isInteger(event.charIndex) || event.charIndex < 0) return;
-          const wordStart = chunks[i - 1].slice(event.charIndex).trimStart().charAt(0).toLocaleLowerCase();
-          const mouth = /[eéií]/.test(wordStart)
-            ? "wide"
-            : /[oóuúô]/.test(wordStart)
-              ? "round"
-              : /[aáãâ]/.test(wordStart)
-                ? "open"
-                : "closed";
+          clearTimeout(mascotSpeechTimer);
+          mascotSpeechTimer = null;
+          const word = chunks[i - 1].slice(event.charIndex).match(/^[\s,.!?;:…]*([^\s,.!?;:…]+)/);
+          const wordText = word ? word[1] : "";
+          const mouth = mouthPoseForWord(wordText);
           mascot.dataset.speechBoundaries = "true";
           mascot.dataset.mouth = mouth;
           clearTimeout(speechBoundaryTimer);
+          const boundaryLength = Number.isInteger(event.charLength) && event.charLength > 0
+            ? event.charLength
+            : Math.max(3, wordText.length);
           speechBoundaryTimer = setTimeout(() => {
             if (mascot.dataset.mascotState === "speaking") mascot.dataset.mouth = "closed";
-          }, Math.min(300, Math.max(110, (event.charLength || 3) * 35)));
+          }, Math.min(360, Math.max(120, boundaryLength * 42)));
         };
         u.onend = () => {
           if (token !== speakToken) return;
+          clearMascotSpeechMotion();
+          activeMascotSpeechText = "";
+          mascot.dataset.mouth = "closed";
           if (i >= chunks.length) {
             done(true);
             return;
@@ -947,6 +1468,9 @@
         };
         u.onerror = (e) => {
           if (token !== speakToken) return;
+          clearMascotSpeechMotion();
+          activeMascotSpeechText = "";
+          mascot.dataset.mouth = "closed";
           setMascotState(e.error === "canceled" || e.error === "interrupted" ? "idle" : "error");
           if (e.error === "canceled" || e.error === "interrupted") { done(); return; }
           next();
@@ -958,6 +1482,7 @@
       waitForVoices().then(() => {
         if (token !== speakToken) return;
         if (!chunks.length) { done(); return; }
+        voice = pickVoice(speechMode);
         speechStartTimer = setTimeout(next, 100);
         keepAlive = setInterval(() => {
           if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
@@ -1203,6 +1728,7 @@
         setState("error", "Câmera indisponível");
         showStatus("Não consegui capturar a imagem para a leitura automática. Confira a câmera.");
         resumeListening();
+        showMascotErrorMoment();
       } else {
         await fail("Não consegui capturar uma imagem. Verifique a câmera e tente novamente.");
       }
@@ -1219,6 +1745,7 @@
         setState("error", "Sem conexão");
         showStatus("Leitura automática pausada: confira a conexão com a internet.");
         resumeListening();
+        showMascotErrorMoment();
       } else {
         await fail("Estou sem internet. Verifique a conexão do celular.");
       }
@@ -1228,6 +1755,7 @@
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), CONFIG.apiTimeoutMs);
     const requestStartedAt = performance.now();
+    const requestMode = assistantMode;
     let responseStatus = null;
     let serverRequestId = null;
     let responseArrivedAt = null;
@@ -1253,8 +1781,8 @@
           "X-Request-ID": requestId
         },
         body: JSON.stringify({
+          assistant_mode: requestMode,
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
             {
               role: "user",
               content: [
@@ -1308,7 +1836,7 @@
           stage: "response_to_voice_start",
           duration_ms: Number((performance.now() - responseArrivedAt).toFixed(2))
         });
-      }, showMascotHappyMoment);
+      }, showMascotHappyMoment, requestMode);
       if (!voiceStartObserved) {
         console.info("[B.E.A. performance]", {
           request_id: requestId,
@@ -1349,6 +1877,7 @@
         setState("error", "Falha na leitura");
         showStatus("Não consegui concluir a leitura automática. " + msg);
         resumeListening();
+        showMascotErrorMoment();
       } else {
         await fail(msg);
       }
@@ -1364,6 +1893,17 @@
   }
   document.addEventListener("visibilitychange", () => {
     updateMascotMotion();
+    if (document.hidden) {
+      clearTimeout(mascotSpeechTimer);
+      clearTimeout(speechBoundaryTimer);
+      mascotSpeechTimer = null;
+      speechBoundaryTimer = null;
+      if (mascot.dataset.mascotState === "speaking") mascot.dataset.mouth = "closed";
+    } else if (mascot.dataset.mascotState === "speaking" &&
+      mascot.dataset.speechBoundaries !== "true" && activeMascotSpeechText) {
+      if (mascotSpeechSequenceToken === speakToken) scheduleFallbackMouth(speakToken);
+      else startFallbackMouth(activeMascotSpeechText, speakToken);
+    }
     if (document.visibilityState === "visible" && systemOn) {
       keepAwake();
       if (stream && !environmentScanTimer) scheduleEnvironmentScan();
@@ -1376,8 +1916,14 @@
     clearTimeout(restartTimer);
     clearEnvironmentScan();
     clearTimeout(mascotBlinkTimer);
+    clearTimeout(mascotBlinkReleaseTimer);
+    clearTimeout(mascotSecondBlinkTimer);
     clearTimeout(mascotGazeTimer);
+    clearTimeout(mascotGazeResetTimer);
     clearTimeout(mascotGestureTimer);
+    clearTimeout(mascotGestureReleaseTimer);
+    clearTimeout(mascotMicroTimer);
+    clearTimeout(mascotMicroResetTimer);
     clearTimeout(mascotEmotionTimer);
     clearTimeout(speechBoundaryTimer);
     mascot.classList.remove("is-gesturing");
@@ -1429,6 +1975,14 @@
       ? "Microfone reativado. A escuta retornará quando a Bia terminar de responder."
       : "Microfone reativado. Diga “Bia” e faça seu pedido.");
     if (!busy) resumeListening();
+  });
+
+  modeToggle.addEventListener("click", () => {
+    setAssistantMode(
+      assistantMode === ASSISTANT_MODES.BIA
+        ? ASSISTANT_MODES.JARVIS
+        : ASSISTANT_MODES.BIA
+    );
   });
 })();
 </script>

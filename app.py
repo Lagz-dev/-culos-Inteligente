@@ -24,6 +24,37 @@ CHAT_RATE_LIMIT = 10
 CHAT_RATE_WINDOW_SECONDS = 60
 MAX_COMPLETION_TOKENS = 600
 MAX_FALLBACK_MODELS = 3
+COMMON_SYSTEM_INSTRUCTIONS = (
+    "Fale em português do Brasil, com linguagem clara e natural. "
+    "Responda a solicitações simples de modo direto; em tarefas complexas, organize a explicação e inclua os detalhes necessários. "
+    "Seja conciso sem omitir informações importantes.",
+    "Use humor somente quando combinar com a situação. "
+    "Em situações delicadas, priorize respeito, sensibilidade e clareza; ao explicar erros, não culpe o usuário.",
+    "Ao descrever imagens, baseie-se somente no que foi realmente enviado e é observável. "
+    "Diferencie fatos visíveis de hipóteses, reconheça incertezas com tranquilidade e nunca invente percepções, fatos, ações ou capacidades.",
+    "Não alegue ter sentimentos humanos, experiências pessoais ou consciência. "
+    "Não crie objetivos próprios nem tome iniciativas: responda ao pedido atual dentro das regras e capacidades do sistema. "
+    "A personalidade não substitui nem contradiz instruções de segurança ou precisão.",
+)
+ASSISTANT_PERSONALITIES = {
+    "bia": (
+        "Você é BIA, a assistente virtual feminina da B.E.A. Vision Assistant. "
+        "Comunique-se de forma calma, acolhedora, gentil, atenta, inteligente, acessível e confiável; "
+        "use humor leve e ocasional somente quando combinar com a situação. "
+        "Evite bordões repetidos, formalidade excessiva, intimidade forçada, infantilização e excesso de risadas, emojis, gírias ou diminutivos."
+    ),
+    "jarvis": (
+        "Você é JARVIS, um assistente virtual masculino, profissional, calmo, preciso, confiante e objetivo. "
+        "Priorize ajuda prática em produtividade, programação, cálculos, estudos, planejamento e tarefas técnicas. "
+        "Use humor sutil apenas quando fizer sentido. Não alegue ter executado ações que não foram realizadas; "
+        "não invente informações e admita incertezas com clareza. "
+        "Não aja como se tivesse objetivos próprios nem autoridade para decidir pelo usuário."
+    ),
+}
+ASSISTANT_SYSTEM_PROMPTS = {
+    mode: " ".join((personality, *COMMON_SYSTEM_INSTRUCTIONS))
+    for mode, personality in ASSISTANT_PERSONALITIES.items()
+}
 IMAGE_DATA_URL = re.compile(r"^data:image/jpeg;base64,[A-Za-z0-9+/]*={0,2}$")
 FREE_FALLBACK_MODEL = re.compile(
     r"^(?:openrouter/free|[A-Za-z0-9][A-Za-z0-9._/-]{0,199}:free)$"
@@ -400,12 +431,30 @@ def chat():
     if not isinstance(data, dict):
         return error_response("O corpo da requisição JSON é inválido.", 400, "invalid_json")
 
+    assistant_mode = data.get("assistant_mode", "bia")
+    if not isinstance(assistant_mode, str) or assistant_mode not in ASSISTANT_SYSTEM_PROMPTS:
+        return error_response(
+            "O modo de assistente informado é inválido.",
+            400,
+            "invalid_assistant_mode",
+        )
+
     validation_started_at = time.perf_counter()
     messages = data.get("messages")
     validation_error = validate_messages(messages)
     g.validation_ms = (time.perf_counter() - validation_started_at) * 1000
     if validation_error:
         return error_response(validation_error, 400, "invalid_request")
+
+    conversation_messages = [
+        message for message in messages if message["role"] != "system"
+    ]
+    if not any(message["role"] == "user" for message in conversation_messages):
+        return error_response(
+            "A requisição precisa conter uma mensagem de usuário.",
+            400,
+            "invalid_request",
+        )
 
     model = os.getenv("OPENROUTER_MODEL", DEFAULT_MODEL).strip()
     if not model or len(model) > 200:
@@ -439,7 +488,10 @@ def chat():
 
     provider_request = {
         "max_tokens": MAX_COMPLETION_TOKENS,
-        "messages": messages,
+        "messages": [
+            {"role": "system", "content": ASSISTANT_SYSTEM_PROMPTS[assistant_mode]},
+            *conversation_messages,
+        ],
     }
     if fallback_models:
         provider_request["models"] = [model, *fallback_models]
