@@ -1346,9 +1346,9 @@
     }
   }
 
-  const FEMALE_VOICE = /francisca|luciana|maria|camila|bruna|fernanda|joana|female|feminina|woman/i;
-  const MALE_VOICE = /(^|[\s_-])(male|masculino|man)([\s_-]|$)/i;
-  const JARVIS_MALE_VOICE = /(^|[\s_-])(male|masculino|man|daniel|antonio|andré|andre|ricardo|lucas|thiago|tiago|felipe|joão|joao|bruno|rafael|gustavo|pedro)([\s_-]|$)/i;
+  const FEMALE_VOICE = /\b(?:francisca|luciana|maria|camila|bruna|fernanda|joana|vitoria|raquel|helena|ana|leticia|beatriz|isabela|manuela|sonia|thalia|female|feminina|woman)\b/i;
+  const MALE_VOICE = /\b(?:male|masculino|man|daniel|antonio|andre|ricardo|lucas|thiago|tiago|felipe|joao|bruno|rafael|gustavo|pedro|mateus|marcos|paulo|masculina)\b/i;
+  const PREFERRED_VOICE_QUALITY = /natural|neural|online|premium/i;
 
   function waitForVoices() {
     loadVoices();
@@ -1392,27 +1392,46 @@
 
   function voiceScore(voice) {
     let value = 0;
-    if (/natural|neural|online|premium/i.test(voice.name)) value += 100;
+    if (PREFERRED_VOICE_QUALITY.test(voice.name)) value += 100;
     if (!voice.localService) value += 15;
     if (/google|microsoft/i.test(voice.name)) value += 10;
     return value;
   }
 
-  function pickVoice(mode = assistantMode) {
-    const portuguese = portugueseVoices();
-    if (mode === ASSISTANT_MODES.JARVIS) {
-      const masculineVoices = portuguese.filter((voice) => JARVIS_MALE_VOICE.test(voice.name));
-      if (masculineVoices.length) {
-        return masculineVoices.sort((a, b) => voiceScore(b) - voiceScore(a))[0];
-      }
-    }
+  function voiceProfileScore(voice, mode) {
+    const description = `${voice.name} ${voice.voiceURI || ""}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const isFemale = FEMALE_VOICE.test(description);
+    const isMale = MALE_VOICE.test(description);
+    const wantsJarvis = mode === ASSISTANT_MODES.JARVIS;
+    const genderPreference = wantsJarvis
+      ? (isMale ? 500 : 0) - (isFemale ? 500 : 0)
+      : (isFemale ? 500 : 0) - (isMale ? 500 : 0);
+    return genderPreference + voiceScore(voice);
+  }
 
-    const score = (v) => {
-      let value = FEMALE_VOICE.test(v.name) ? 500 : 0;
-      if (MALE_VOICE.test(v.name)) value -= 500;
-      return value + voiceScore(v);
-    };
-    return portuguese.sort((a, b) => score(b) - score(a))[0] || null;
+  function bestVoiceForMode(candidates, mode) {
+    return [...candidates].sort(
+      (a, b) => voiceProfileScore(b, mode) - voiceProfileScore(a, mode)
+    )[0] || null;
+  }
+
+  function pickVoice(mode = assistantMode) {
+    const candidates = portugueseVoices();
+    const selected = bestVoiceForMode(candidates, mode);
+    if (!selected || candidates.length < 2) return selected;
+
+    const otherMode = mode === ASSISTANT_MODES.JARVIS
+      ? ASSISTANT_MODES.BIA
+      : ASSISTANT_MODES.JARVIS;
+    const otherModeVoice = bestVoiceForMode(candidates, otherMode);
+    if (selected !== otherModeVoice) return selected;
+
+    return bestVoiceForMode(
+      candidates.filter((voice) => voice !== selected),
+      mode
+    ) || selected;
   }
 
   // Mantém as frases juntas para aproveitar a prosódia natural do navegador.
@@ -1509,13 +1528,13 @@
         ? speechAssistant.speakingState
         : "Reproduzindo resposta anterior…");
       const chunks = chunkText(text);
-      let voice = null;
       let i = 0, started = false;
 
       const next = () => {
         if (token !== speakToken) return;
         if (i >= chunks.length) { done(); return; }
         const u = new SpeechSynthesisUtterance(chunks[i++]);
+        const voice = pickVoice(speechMode);
         u.lang = "pt-BR";
         u.rate = 0.96;
         u.pitch = speechMode === ASSISTANT_MODES.JARVIS ? 1 : 1.03;
@@ -1578,7 +1597,6 @@
       waitForVoices().then(() => {
         if (token !== speakToken) return;
         if (!chunks.length) { done(); return; }
-        voice = pickVoice(speechMode);
         speechStartTimer = setTimeout(next, 100);
         keepAlive = setInterval(() => {
           if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
