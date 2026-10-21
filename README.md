@@ -37,18 +37,19 @@ O endpoint <http://127.0.0.1:5000/api/health> informa se o backend responde e se
 
 ## Testes
 
-Instale as dependências de desenvolvimento e execute a suíte:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider
-```
-
-Também é possível executar os testes com o `unittest` da biblioteca padrão:
+Com as dependências da aplicação instaladas, execute a suíte com o `unittest` da biblioteca padrão:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
+
+## Diagnóstico de desempenho
+
+Durante uma solicitação, o console do navegador registra `capture_prepare`, `api_round_trip` e `response_to_voice_start`, com duração em milissegundos e um ID de requisição. O evento de início da voz informa `observed: false` quando o navegador não fornece um evento de início de fala mensurável.
+
+O log do backend com a mesma ID registra `validation_ms`, `provider_http_ms`, `backend_processing_ms` e `total_ms`. `backend_processing_ms` é o tempo total da rota menos a chamada HTTP à OpenRouter; `validation_ms` mede a validação das mensagens. `api_round_trip` inclui serialização/envio, processamento do servidor, resposta e transporte. A diferença entre esse valor e `total_ms` é apenas uma estimativa de transporte e trabalho fora da rota, não uma medição isolada da rede.
+
+Os logs registram somente ID, etapa, status e durações; não incluem perguntas, respostas, imagens nem credenciais. Use a ID para correlacionar o console do navegador aos logs do servidor.
 
 ## Hospedagem no Render
 

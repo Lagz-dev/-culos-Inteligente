@@ -20,6 +20,7 @@ class ChatRouteTests(unittest.TestCase):
     def setUp(self):
         with app_module.chat_requests_lock:
             app_module.chat_requests.clear()
+            app_module.last_chat_request_cleanup = 0.0
         self.environment = patch.dict(
             os.environ,
             {
@@ -81,6 +82,16 @@ class ChatRouteTests(unittest.TestCase):
         self.assertIn("scheduleEnvironmentScan(CONFIG.firstEnvironmentScanMs)", html)
         self.assertIn('document.visibilityState !== "visible"', html)
 
+    def test_frontend_performance_instrumentation_uses_safe_correlated_timings(self):
+        response = self.client.get("/")
+        html = response.get_data(as_text=True)
+
+        self.assertIn('"X-Request-ID": requestId', html)
+        self.assertIn('stage: "capture_prepare"', html)
+        self.assertIn('stage: "api_round_trip"', html)
+        self.assertIn('stage: "response_to_voice_start"', html)
+        self.assertIn('response.headers.get("X-Request-ID")', html)
+
     def test_chat_sends_configured_model_and_returns_answer(self):
         upstream = Mock()
         upstream.ok = True
@@ -118,6 +129,38 @@ class ChatRouteTests(unittest.TestCase):
             post.call_args.kwargs["headers"]["Authorization"],
             f"Bearer {os.environ['OPENROUTER_API_KEY']}",
         )
+
+    def test_performance_logs_correlate_request_without_logging_content(self):
+        request_id = "12345678-1234-4234-8234-123456789abc"
+        upstream = Mock(ok=True, status_code=200)
+        upstream.json.return_value = {
+            "choices": [{"message": {"content": "private answer detail"}}]
+        }
+
+        with patch("app.requests.post", return_value=upstream), self.assertLogs(
+            "app", level="INFO"
+        ) as captured:
+            response = self.client.post(
+                "/api/chat",
+                headers={"X-Request-ID": request_id},
+                json={
+                    "messages": [
+                        {"role": "user", "content": "private prompt detail"}
+                    ]
+                },
+            )
+
+        logs = "\n".join(captured.output)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["X-Request-ID"], request_id)
+        self.assertIn(f"request_id={request_id}", logs)
+        self.assertRegex(logs, r"validation_ms=\d+\.\d{2}")
+        self.assertRegex(logs, r"backend_processing_ms=\d+\.\d{2}")
+        self.assertRegex(logs, r"provider_http_ms=\d+\.\d{2}")
+        self.assertRegex(logs, r"total_ms=\d+\.\d{2}")
+        self.assertNotIn("private prompt detail", logs)
+        self.assertNotIn("private answer detail", logs)
+        self.assertNotIn("test-only-placeholder", logs)
 
     def test_configured_free_fallback_models_are_forwarded_in_priority_order(self):
         upstream = Mock(ok=True, status_code=200)
@@ -550,6 +593,18 @@ class ChatRouteTests(unittest.TestCase):
         self.assertEqual(second.status_code, 429)
         self.assertEqual(second.json["code"], "request_rate_limited")
         self.assertEqual(post.call_count, 1)
+
+    def test_chat_rate_limit_removes_expired_client_buckets(self):
+        with app_module.chat_requests_lock:
+            app_module.chat_requests["expired-client"].append(100.0)
+            app_module.chat_requests["active-client"].append(150.0)
+
+        with patch("app.time.monotonic", return_value=200.0):
+            self.assertFalse(app_module.chat_rate_limited("new-client"))
+
+        self.assertNotIn("expired-client", app_module.chat_requests)
+        self.assertIn("active-client", app_module.chat_requests)
+        self.assertEqual(list(app_module.chat_requests["new-client"]), [200.0])
 
 
 if __name__ == "__main__":

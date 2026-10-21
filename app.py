@@ -2,12 +2,13 @@ import os
 import re
 import threading
 import time
+import uuid
 from collections import defaultdict, deque
 from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, g, jsonify, request, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 
@@ -27,12 +28,55 @@ IMAGE_DATA_URL = re.compile(r"^data:image/jpeg;base64,[A-Za-z0-9+/]*={0,2}$")
 FREE_FALLBACK_MODEL = re.compile(
     r"^(?:openrouter/free|[A-Za-z0-9][A-Za-z0-9._/-]{0,199}:free)$"
 )
+REQUEST_ID_PATTERN = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 chat_requests = defaultdict(deque)
 chat_requests_lock = threading.Lock()
+last_chat_request_cleanup = 0.0
+
+
+@app.before_request
+def start_chat_request_timing():
+    if request.endpoint != "chat":
+        return
+
+    request_id = request.headers.get("X-Request-ID", "")
+    if not REQUEST_ID_PATTERN.fullmatch(request_id):
+        request_id = str(uuid.uuid4())
+    g.performance_request_id = request_id
+    g.performance_started_at = time.perf_counter()
+    g.validation_ms = None
+    g.provider_http_ms = 0.0
+
+
+@app.after_request
+def log_chat_request_timing(response):
+    if request.endpoint != "chat" or not hasattr(g, "performance_request_id"):
+        return response
+
+    total_ms = (time.perf_counter() - g.performance_started_at) * 1000
+    provider_http_ms = g.provider_http_ms
+    validation_ms = (
+        "n/a" if g.validation_ms is None else f"{g.validation_ms:.2f}"
+    )
+    response.headers["X-Request-ID"] = g.performance_request_id
+    app.logger.info(
+        "performance request_id=%s endpoint=api.chat status=%s validation_ms=%s "
+        "backend_processing_ms=%.2f provider_http_ms=%.2f total_ms=%.2f",
+        g.performance_request_id,
+        response.status_code,
+        validation_ms,
+        max(0.0, total_ms - provider_http_ms),
+        provider_http_ms,
+        total_ms,
+    )
+    return response
 
 
 def error_response(message, status, code):
@@ -40,9 +84,22 @@ def error_response(message, status, code):
 
 
 def chat_rate_limited(client_ip):
+    global last_chat_request_cleanup
+
     now = time.monotonic()
     cutoff = now - CHAT_RATE_WINDOW_SECONDS
     with chat_requests_lock:
+        if now - last_chat_request_cleanup >= CHAT_RATE_WINDOW_SECONDS:
+            expired_clients = []
+            for address, timestamps in chat_requests.items():
+                while timestamps and timestamps[0] <= cutoff:
+                    timestamps.popleft()
+                if not timestamps:
+                    expired_clients.append(address)
+            for address in expired_clients:
+                del chat_requests[address]
+            last_chat_request_cleanup = now
+
         timestamps = chat_requests[client_ip]
         while timestamps and timestamps[0] <= cutoff:
             timestamps.popleft()
@@ -343,8 +400,10 @@ def chat():
     if not isinstance(data, dict):
         return error_response("O corpo da requisição JSON é inválido.", 400, "invalid_json")
 
+    validation_started_at = time.perf_counter()
     messages = data.get("messages")
     validation_error = validate_messages(messages)
+    g.validation_ms = (time.perf_counter() - validation_started_at) * 1000
     if validation_error:
         return error_response(validation_error, 400, "invalid_request")
 
@@ -387,6 +446,7 @@ def chat():
     else:
         provider_request["model"] = model
 
+    provider_started_at = time.perf_counter()
     try:
         upstream = requests.post(
             OPENROUTER_URL,
@@ -409,6 +469,8 @@ def chat():
             502,
             "provider_unavailable",
         )
+    finally:
+        g.provider_http_ms = (time.perf_counter() - provider_started_at) * 1000
 
     if not upstream.ok:
         upstream_status = upstream.status_code
