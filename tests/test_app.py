@@ -1,4 +1,5 @@
 import os
+import re
 import unittest
 from html.parser import HTMLParser
 from unittest.mock import Mock, patch
@@ -138,7 +139,8 @@ class ChatRouteTests(unittest.TestCase):
             "voice = pickVoice(speechMode);",
             "u.pitch = speechMode === ASSISTANT_MODES.JARVIS ? 1 : 1.03;",
             "if (voice) u.voice = voice;",
-            "const requestMode = assistantMode;",
+            "async function processCommand(question, requireImage = false, automatic = false, mode = assistantMode)",
+            "const requestMode = mode;",
             "assistant_mode: requestMode",
             "}, showMascotHappyMoment, requestMode);",
         ):
@@ -192,6 +194,49 @@ class ChatRouteTests(unittest.TestCase):
         self.assertIn("scheduleEnvironmentScan(CONFIG.firstEnvironmentScanMs)", html)
         self.assertIn('document.visibilityState !== "visible"', html)
 
+    def test_activation_copy_and_wake_words_follow_the_selected_assistant(self):
+        response = self.client.get("/")
+        html = response.get_data(as_text=True)
+        response.close()
+
+        self.assertIn("Toque em “Ativar BIA” para conceder as permissões e iniciar.", html)
+        self.assertIn('<button id="startSystem" class="btn btn-main">Ativar BIA</button>', html)
+        self.assertIn("Diga “Bia” e faça seu pedido.", html)
+        self.assertIn('wakePattern: /\\b(?:bia|bea|via)\\b/i', html)
+        self.assertIn("activationButton: \"Ativar JARVIS\"", html)
+        self.assertIn("Toque em “Ativar JARVIS” para conceder as permissões e iniciar.", html)
+        self.assertIn("Diga “JARVIS” e faça seu pedido.", html)
+        self.assertIn('wakePattern: /\\b(?:jarvis|javis|jarves|djarvis)\\b/i', html)
+        self.assertIn("startBtn.textContent = assistant.activationButton;", html)
+        self.assertIn("hint.textContent = assistant.hint;", html)
+        self.assertIn("document.title = assistant.documentTitle;", html)
+        self.assertIn("showStatus(assistant.activationPrompt);", html)
+        self.assertIn("showStatus(assistant.permissionRequest);", html)
+        self.assertIn("const assistant = activeAssistant();", html)
+        self.assertIn("if (!assistant.wakePattern.test(transcript)) return;", html)
+        self.assertIn("transcript.replace(assistant.removeWakeWords, \"\")", html)
+        self.assertIn("processCommand(command, false, false, assistantMode);", html)
+        self.assertNotIn("const WAKE_ONE", html)
+        self.assertNotIn("const WAKE_ALL", html)
+
+        patterns = dict(
+            re.findall(
+                r"\[ASSISTANT_MODES\.(BIA|JARVIS)\]: \{\s*.*?wakePattern: /(.+?)/i",
+                html,
+                re.DOTALL,
+            )
+        )
+        bia_wake = re.compile(patterns["BIA"], re.IGNORECASE)
+        jarvis_wake = re.compile(patterns["JARVIS"], re.IGNORECASE)
+        for transcript in ("Bia, leia isto", "Bea, leia isto", "Via, leia isto"):
+            with self.subTest(mode="bia", transcript=transcript):
+                self.assertIsNotNone(bia_wake.search(transcript))
+                self.assertIsNone(jarvis_wake.search(transcript))
+        for transcript in ("Jarvis, organize isto", "Javis, organize isto", "Jarves, organize isto"):
+            with self.subTest(mode="jarvis", transcript=transcript):
+                self.assertIsNotNone(jarvis_wake.search(transcript))
+                self.assertIsNone(bia_wake.search(transcript))
+
     def test_assistant_mode_toggle_is_visual_and_preserves_existing_app_state(self):
         response = self.client.get("/")
         html = response.get_data(as_text=True)
@@ -220,7 +265,7 @@ class ChatRouteTests(unittest.TestCase):
             with self.subTest(jarvis_style=jarvis_style):
                 self.assertIn(jarvis_style, html)
         self.assertIn('let assistantMode = ASSISTANT_MODES.BIA;', html)
-        self.assertIn('modeToggle.textContent = isJarvis ? "Voltar para BIA" : "Ativar JARVIS";', html)
+        self.assertIn("modeToggle.textContent = assistant.modeToggleLabel;", html)
         self.assertIn(
             'themeColorMeta.setAttribute("content", isJarvis ? "#07111B" : "#F7F4F0");',
             html,
@@ -230,9 +275,16 @@ class ChatRouteTests(unittest.TestCase):
         function_start = html.index("function setAssistantMode(mode)")
         function_end = html.index("\n  function buzz", function_start)
         mode_logic = html[function_start:function_end]
-        for unrelated_state in ("speechSynthesis", "recognition", "video", "messages", "setState("):
-            with self.subTest(unrelated_state=unrelated_state):
-                self.assertNotIn(unrelated_state, mode_logic)
+        for operation in (
+            "speechSynthesis",
+            "stopRecognition",
+            "startRecognition",
+            "startCamera",
+            "getUserMedia",
+            "processCommand",
+        ):
+            with self.subTest(operation=operation):
+                self.assertNotIn(operation, mode_logic)
 
         self.assertEqual(html.count('fetch("/api/chat"'), 1)
         self.assertIn("assistant_mode: requestMode", html)

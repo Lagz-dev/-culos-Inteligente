@@ -4,7 +4,7 @@ A B.E.A. é uma aplicação de acessibilidade que combina câmera, interação p
 
 ## Como funciona
 
-- Depois de uma ativação inicial e da concessão das permissões, a escuta de voz fica contínua. Diga **“Bia”** antes do pedido para evitar que conversas ambientes sejam enviadas por engano.
+- Depois da ativação inicial e da concessão das permissões, o reconhecimento de fala fica ativo e aguarda a palavra do modo selecionado: **“Bia”** no modo BIA ou **“JARVIS”** no modo JARVIS. A captura depende de o navegador suportar reconhecimento de fala e das permissões concedidas.
 - A B.E.A. pausa o reconhecimento enquanto processa uma solicitação ou reproduz áudio e o retoma ao terminar.
 - O botão **Silenciar/Reativar microfone** controla a escuta. Silenciar não interrompe uma resposta que já esteja sendo reproduzida.
 - O botão discreto **Ativar JARVIS/Voltar para BIA** alterna o tema visual e seleciona personalidade e perfil de voz para as próximas respostas; câmera, microfone e reconhecimento de fala permanecem compartilhados.
@@ -32,7 +32,7 @@ notepad .env
 
 No `.env`, configure `OPENROUTER_API_KEY` com sua chave. Não publique nem compartilhe esse arquivo. A variável `OPENROUTER_MODEL` pode ser configurada com o identificador de um modelo disponível que aceite texto e imagens; se omitida, é usado o modelo padrão do projeto. Opcionalmente, `OPENROUTER_FALLBACK_MODELS` aceita até três IDs gratuitos separados por vírgulas (sufixo `:free` ou `openrouter/free`). Se configurada, a OpenRouter tenta esses modelos na ordem após o principal; sem ela, o comportamento atual permanece.
 
-Abra <http://127.0.0.1:5000>, conceda as permissões de câmera e microfone e toque uma vez em **Ativar B.E.A.**. Essa ativação inicial é necessária para iniciar os recursos protegidos pelo navegador e liberar a reprodução de áudio. Depois, use a palavra de ativação ou o botão de microfone.
+Abra <http://127.0.0.1:5000>, escolha o modo, conceda as permissões solicitadas para câmera e microfone e toque em **Ativar BIA** ou **Ativar JARVIS** conforme o modo. Essa ativação é necessária para iniciar os recursos protegidos pelo navegador e liberar a reprodução de áudio. Depois, diga a palavra de ativação correspondente ou use o controle de microfone.
 
 O endpoint <http://127.0.0.1:5000/api/health> informa se o backend responde e se as variáveis de integração estão configuradas; ele não faz uma chamada à OpenRouter.
 
@@ -68,7 +68,7 @@ O modo JARVIS exibe uma mascote masculina original em SVG dentro do mesmo palco 
 
 ## Modo visual JARVIS
 
-A interface inicia no modo BIA e permite alternar entre `bia` e `jarvis` pelo botão no cabeçalho, sem recarregar a página. O modo é representado por `data-assistant-mode` no elemento principal e no `body`, centralizado pela função `setAssistantMode`, e é enviado ao backend nas novas solicitações. O tema JARVIS usa fundo azul-marinho, painéis translúcidos, contornos e detalhes ciano, mantendo as informações reais de estado da câmera e do sistema. A alternância visual e de personalidade não reinicia os controles compartilhados de câmera e voz.
+A interface inicia no modo BIA e permite alternar entre `bia` e `jarvis` pelo botão no cabeçalho, sem recarregar a página. O modo é representado por `data-assistant-mode` no elemento principal e no `body`, centralizado pela função `setAssistantMode`, e é enviado ao backend nas novas solicitações. O botão de inicialização, as instruções, os status e as palavras de ativação seguem o modo selecionado: BIA reconhece “Bia” e suas variantes existentes; JARVIS reconhece “JARVIS” e variantes fonéticas comuns. Resultados de fala são interpretados com o modo ativo no momento do reconhecimento. O tema JARVIS usa fundo azul-marinho, painéis translúcidos, contornos e detalhes ciano, mantendo as informações reais de estado da câmera e do sistema. Alternar o modo atualiza os textos sem reiniciar câmera ou reconhecimento.
 
 ## Hospedagem no Render
 

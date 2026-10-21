@@ -730,7 +730,7 @@
       <img class="brand-logo" src="static/bia-logo.jpg" alt="Logo da B.E.A., com as letras bea em lavanda, azul claro e pêssego">
       <div class="mode-identity" aria-hidden="true">
         <span class="mode-identity-name">JARVIS</span>
-        <span class="mode-identity-caption">B.E.A. VISION ASSISTANT</span>
+        <span class="mode-identity-caption">ASSISTENTE DE VISÃO</span>
       </div>
     </div>
     <div class="subtitle">Assistente de visão · Acessibilidade</div>
@@ -863,12 +863,12 @@
   </figure>
 
   <div id="status" role="status" aria-live="polite">
-    Toque em “Ativar B.E.A.” para conceder as permissões e iniciar.
+    Toque em “Ativar BIA” para conceder as permissões e iniciar.
   </div>
   <div class="hint" id="hint" hidden>Diga “Bia” e faça seu pedido. A cena também é analisada automaticamente.</div>
 
   <div class="controls">
-    <button id="startSystem" class="btn btn-main">Ativar B.E.A.</button>
+    <button id="startSystem" class="btn btn-main">Ativar BIA</button>
     <button id="muteMic" class="btn btn-alt" type="button" aria-pressed="false" hidden>
       🎙️ Microfone ligado — toque para silenciar
     </button>
@@ -889,9 +889,6 @@
     environmentScanIntervalMs: 60000,
     recognitionRestartMs: 700
   };
-  const WAKE_ONE = /\b(bia|bea|via)\b/;
-  const WAKE_ALL = /\b(bia|bea|via)\b/g;
-
   /* ================= ELEMENTOS ================= */
   const $ = (id) => document.getElementById(id);
   const video = $("video"), statusEl = $("status"), stateLabel = $("stateLabel");
@@ -900,6 +897,68 @@
   const themeColorMeta = document.querySelector('meta[name="theme-color"]');
   const startBtn = $("startSystem"), muteMicBtn = $("muteMic"), hint = $("hint");
   const ASSISTANT_MODES = { BIA: "bia", JARVIS: "jarvis" };
+  const ASSISTANT_CONFIG = {
+    [ASSISTANT_MODES.BIA]: {
+      name: "BIA",
+      documentTitle: "B.E.A · Assistente de Visão",
+      modeToggleLabel: "Ativar JARVIS",
+      activationButton: "Ativar BIA",
+      activationState: "Ativando BIA…",
+      activationPrompt: "Toque em “Ativar BIA” para conceder as permissões e iniciar.",
+      permissionRequest: "Ativando câmera e microfone para a BIA. Aceite as permissões se o navegador solicitar.",
+      hint: "Diga “Bia” e faça seu pedido. A cena também é analisada automaticamente.",
+      wakePattern: /\b(?:bia|bea|via)\b/i,
+      removeWakeWords: /\b(?:bia|bea|via)\b/gi,
+      listeningState: "Ouvindo… diga “Bia”",
+      listeningStatus: "Microfone ativo. Diga “Bia” e faça seu pedido.",
+      confirmation: "Estou ouvindo. O que deseja?",
+      greetingWithCamera: "Olá! Sou a Bia. Diga “Bia” e faça seu pedido.",
+      greetingWithoutCamera: "Olá! Sou a Bia. Estou sem câmera; a leitura automática do ambiente não está disponível. Diga “Bia” e faça seu pedido.",
+      mutedStatus: "Microfone silenciado. A BIA não ouvirá comandos até você reativá-lo.",
+      reactivatedBusy: "Microfone reativado. A escuta retornará quando a BIA terminar de responder.",
+      reactivatedStatus: "Microfone reativado. Diga “Bia” e faça seu pedido.",
+      processingState: "BIA analisando…",
+      speakingState: "BIA falando…",
+      reconnectingState: "Reconectando microfone para a BIA…",
+      microphoneBlocked: "Microfone bloqueado. Permita o acesso nas configurações do navegador e recarregue a página.",
+      microphoneMissing: "Não encontrei nenhum microfone neste aparelho.",
+      recognitionUnavailable: "Este navegador não tem reconhecimento de voz. Use um navegador compatível, como o Google Chrome.",
+      recognitionStartFailed: "Não foi possível iniciar a escuta. Confira a permissão do microfone e tente reativá-lo.",
+      cameraPermissionDenied: "A câmera da BIA foi bloqueada. Permita o acesso à câmera e recarregue a página.",
+      cameraMissing: "Não encontrei nenhuma câmera neste aparelho.",
+      cameraBusy: "A câmera está sendo usada por outro aplicativo. Feche-o e tente novamente."
+    },
+    [ASSISTANT_MODES.JARVIS]: {
+      name: "JARVIS",
+      documentTitle: "JARVIS · Assistente de Visão",
+      modeToggleLabel: "Voltar para BIA",
+      activationButton: "Ativar JARVIS",
+      activationState: "Inicializando JARVIS…",
+      activationPrompt: "Toque em “Ativar JARVIS” para conceder as permissões e iniciar.",
+      permissionRequest: "Inicializando JARVIS: permita o acesso à câmera e ao microfone quando solicitado.",
+      hint: "Diga “JARVIS” e faça seu pedido. A cena também é analisada automaticamente.",
+      wakePattern: /\b(?:jarvis|javis|jarves|djarvis)\b/i,
+      removeWakeWords: /\b(?:jarvis|javis|jarves|djarvis)\b/gi,
+      listeningState: "Ouvindo… diga “JARVIS”",
+      listeningStatus: "JARVIS está ouvindo. Diga “JARVIS” e faça seu pedido.",
+      confirmation: "Às suas ordens. Como posso ajudar?",
+      greetingWithCamera: "JARVIS pronto. Diga “JARVIS” e faça seu pedido.",
+      greetingWithoutCamera: "JARVIS pronto. A câmera não está disponível para análise do ambiente. Diga “JARVIS” e faça seu pedido.",
+      mutedStatus: "Microfone silenciado. JARVIS não receberá comandos até você reativá-lo.",
+      reactivatedBusy: "Microfone reativado. JARVIS voltará a ouvir quando terminar de responder.",
+      reactivatedStatus: "Microfone reativado. Diga “JARVIS” e faça seu pedido.",
+      processingState: "JARVIS analisando…",
+      speakingState: "JARVIS falando…",
+      reconnectingState: "Reconectando o microfone para JARVIS…",
+      microphoneBlocked: "Acesso ao microfone bloqueado. Permita-o nas configurações do navegador e recarregue a página.",
+      microphoneMissing: "Nenhum microfone foi encontrado neste dispositivo.",
+      recognitionUnavailable: "O reconhecimento de voz não está disponível neste navegador. Use um navegador compatível, como o Google Chrome.",
+      recognitionStartFailed: "Não foi possível iniciar o reconhecimento. Verifique a permissão do microfone e tente novamente.",
+      cameraPermissionDenied: "O acesso à câmera do JARVIS foi bloqueado. Permita-o nas configurações do navegador e recarregue a página.",
+      cameraMissing: "Nenhuma câmera foi encontrada neste dispositivo.",
+      cameraBusy: "A câmera está sendo usada por outro aplicativo. Feche-o e tente novamente."
+    }
+  };
   const MASCOT_APP_STATES = {
     off: "idle",
     muted: "idle",
@@ -931,6 +990,7 @@
   let stream = null, recognition = null, wakeLock = null;
   let assistantMode = ASSISTANT_MODES.BIA;
   let systemOn = false;       // sistema iniciado
+  let activationPending = false;
   let busy = false;           // processando ou falando (reconhecimento pausado)
   let micBlocked = false;     // permissão de microfone negada
   let micMuted = false;
@@ -953,6 +1013,9 @@
     }
   }
   function showStatus(text) { statusEl.textContent = text; }
+  function activeAssistant(mode = assistantMode) {
+    return ASSISTANT_CONFIG[mode];
+  }
   function setAssistantMode(mode) {
     if (!Object.values(ASSISTANT_MODES).includes(mode)) {
       throw new Error(`Modo de assistente inválido: ${mode}`);
@@ -961,12 +1024,42 @@
     document.body.dataset.assistantMode = mode;
     app.dataset.assistantMode = mode;
     const isJarvis = mode === ASSISTANT_MODES.JARVIS;
-    modeToggle.textContent = isJarvis ? "Voltar para BIA" : "Ativar JARVIS";
+    const assistant = activeAssistant(mode);
+    modeToggle.textContent = assistant.modeToggleLabel;
     modeToggle.setAttribute("aria-pressed", String(isJarvis));
     themeColorMeta.setAttribute("content", isJarvis ? "#07111B" : "#F7F4F0");
+    document.title = assistant.documentTitle;
+    startBtn.textContent = assistant.activationButton;
+    hint.textContent = assistant.hint;
     mascot.setAttribute("aria-label", isJarvis
       ? "Mascote ilustrado JARVIS, com cabelo castanho escuro, olhos ciano e traje azul-marinho."
       : "Placeholder técnico da mascote BIA; a arte final ainda será criada.");
+    if (!systemOn) {
+      showStatus(assistant.activationPrompt);
+    } else if (activationPending && !busy) {
+      setState("thinking", assistant.activationState);
+      showStatus(assistant.permissionRequest);
+    } else if (busy) {
+      if (document.body.dataset.state === "speaking") {
+        setState("speaking", "Reproduzindo resposta anterior…");
+      } else if (document.body.dataset.state === "thinking") {
+        setState("thinking", "Solicitação em andamento…");
+      }
+      showStatus("Solicitação em andamento. O modo selecionado será usado nos próximos comandos.");
+    } else if (micBlocked) {
+      showStatus(assistant.microphoneBlocked);
+    } else if (!busy) {
+      if (micMuted) {
+        setState("muted", "Microfone silenciado");
+        showStatus(assistant.mutedStatus);
+      } else if (recognitionRunning) {
+        setState("listening", assistant.listeningState);
+        showStatus(assistant.listeningStatus);
+      } else {
+        setState("reconnecting", assistant.reconnectingState);
+        showStatus(`Aguardando o microfone para ${assistant.name}…`);
+      }
+    }
     updateMascotMotion();
   }
   function activeMascotIllustration() {
@@ -1388,7 +1481,8 @@
   function speak(text, onStart = null, onComplete = null, mode = assistantMode) {
     return new Promise((resolve) => {
       const speechMode = mode;
-      showStatus("BEA: " + text);
+      const speechAssistant = activeAssistant(speechMode);
+      showStatus((assistantMode === speechMode ? speechAssistant.name : "Resposta anterior") + ": " + text);
       busy = true;
       stopRecognition();
       stopSpeaking();
@@ -1411,7 +1505,9 @@
       activeSpeechResolve = resolve;
       if (!hasTTS) { speechStartTimer = setTimeout(done, 300); return; }
 
-      setState("speaking", "Falando…");
+      setState("speaking", assistantMode === speechMode
+        ? speechAssistant.speakingState
+        : "Reproduzindo resposta anterior…");
       const chunks = chunkText(text);
       let voice = null;
       let i = 0, started = false;
@@ -1490,7 +1586,8 @@
         watchdog = setTimeout(() => {
           if (!started && token === speakToken) {
             window.speechSynthesis.cancel();
-            showStatus("BEA: " + text + "\n\n(Sem áudio? Confira o volume de mídia do aparelho.)");
+            showStatus((assistantMode === speechMode ? speechAssistant.name : "Resposta anterior") +
+              ": " + text + "\n\n(Sem áudio? Confira o volume de mídia do aparelho.)");
             done();
           }
         }, 8000);
@@ -1514,20 +1611,22 @@
         stopRecognition();
         return;
       }
-      setState("listening", "Ouvindo… diga “Bia”");
-      showStatus("Microfone ativo. Diga “Bia” e faça seu pedido.");
+      const assistant = activeAssistant();
+      setState("listening", assistant.listeningState);
+      showStatus(assistant.listeningStatus);
     };
 
     recognition.onresult = (event) => {
       if (busy || micMuted || micBlocked) return;
       const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-      if (!WAKE_ONE.test(transcript)) return;
-      const command = transcript.replace(WAKE_ALL, "").replace(/^[\s,.:;!?-]+/, "").trim();
+      const assistant = activeAssistant();
+      if (!assistant.wakePattern.test(transcript)) return;
+      const command = transcript.replace(assistant.removeWakeWords, "").replace(/^[\s,.:;!?-]+/, "").trim();
 
       if (!command) {
-        speak("Estou ouvindo. O que deseja?");
+        speak(assistant.confirmation, null, null, assistantMode);
       } else {
-        processCommand(command);
+        processCommand(command, false, false, assistantMode);
       }
     };
 
@@ -1535,13 +1634,13 @@
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
         micBlocked = true;
         updateMicButton();
-        fail("Microfone bloqueado. Permita o acesso ao microfone nas configurações do navegador e recarregue a página.");
+        fail(activeAssistant().microphoneBlocked);
       } else if (e.error === "audio-capture") {
         micBlocked = true;
         updateMicButton();
-        fail("Não encontrei nenhum microfone neste aparelho.");
+        fail(activeAssistant().microphoneMissing);
       } else if (e.error === "network") {
-        setState("reconnecting", "Reconectando microfone…");
+        setState("reconnecting", activeAssistant().reconnectingState);
         showStatus("O reconhecimento de voz perdeu a internet. Tentando de novo…");
       }
     };
@@ -1559,13 +1658,13 @@
       micBlocked = true;
       updateMicButton();
       setState("error", "Sem reconhecimento de voz");
-      showStatus("Este navegador não tem reconhecimento de voz. Use um navegador compatível, como o Google Chrome.");
+      showStatus(activeAssistant().recognitionUnavailable);
       return;
     }
     if (!recognition) buildRecognition();
     if (recognitionRunning || recognitionStarting) return;
     recognitionStarting = true;
-    setState("reconnecting", "Conectando microfone…");
+    setState("reconnecting", activeAssistant().reconnectingState);
     try {
       recognition.start();
     } catch (error) {
@@ -1574,7 +1673,7 @@
         name: error.name || "Error"
       });
       setState("error", "Microfone indisponível");
-      showStatus("Não foi possível iniciar a escuta. Confira a permissão do microfone e tente reativá-lo.");
+      showStatus(activeAssistant().recognitionStartFailed);
     }
   }
 
@@ -1588,7 +1687,7 @@
   function scheduleRestart() {
     if (!systemOn || busy || micMuted || micBlocked) return;
     clearTimeout(restartTimer);
-    setState("reconnecting", "Reconectando microfone…");
+    setState("reconnecting", activeAssistant().reconnectingState);
     restartTimer = setTimeout(() => {
       if (systemOn && !busy && !micMuted && !micBlocked) startRecognition();
     }, CONFIG.recognitionRestartMs);
@@ -1599,7 +1698,7 @@
     if (!systemOn) return;
     if (micMuted) {
       setState("muted", "Microfone silenciado");
-      showStatus("Microfone silenciado. Toque em “Reativar microfone” para voltar à escuta.");
+      showStatus(activeAssistant().mutedStatus);
       return;
     }
     if (micBlocked) {
@@ -1611,16 +1710,16 @@
   }
 
   // Erro: vibra, mostra em vermelho e avisa por voz
-  function fail(message) {
+  function fail(message, mode = assistantMode) {
     buzz([120, 80, 120]);
     setState("error", "Atenção");
-    return speak(message);
+    return speak(message, null, null, mode);
   }
 
   /* ================= CÂMERA ================= */
   async function startCamera() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showStatus("Câmera indisponível: abra esta página por HTTPS ou localhost.");
+      showStatus(`Câmera indisponível para ${activeAssistant().name}: abra esta página por HTTPS ou localhost.`);
       return false;
     }
     try {
@@ -1645,10 +1744,11 @@
         stream = null;
         video.srcObject = null;
       }
+      const assistant = activeAssistant();
       const msgs = {
-        NotAllowedError: "A câmera foi bloqueada. Permita o acesso à câmera e recarregue a página.",
-        NotFoundError: "Não encontrei nenhuma câmera neste aparelho.",
-        NotReadableError: "A câmera está sendo usada por outro aplicativo. Feche-o e tente de novo."
+        NotAllowedError: assistant.cameraPermissionDenied,
+        NotFoundError: assistant.cameraMissing,
+        NotReadableError: assistant.cameraBusy
       };
       showStatus("Erro na câmera: " + (msgs[e.name] || e.message));
       return false;
@@ -1698,13 +1798,15 @@
   }
 
   /* ================= API (lógica original) ================= */
-  async function processCommand(question, requireImage = false, automatic = false) {
+  async function processCommand(question, requireImage = false, automatic = false, mode = assistantMode) {
     if (busy) return;
+    const requestMode = mode;
+    const requestAssistant = activeAssistant(requestMode);
     const requestId = createRequestId();
     busy = true;
     stopRecognition();
     buzz(60);
-    setState("thinking", "Pensando…");
+    setState("thinking", requestAssistant.processingState);
     showStatus("Preparando a solicitação… Pergunta: “" + question + "”");
 
     let photo;
@@ -1730,7 +1832,7 @@
         resumeListening();
         showMascotErrorMoment();
       } else {
-        await fail("Não consegui capturar uma imagem. Verifique a câmera e tente novamente.");
+        await fail("Não consegui capturar uma imagem. Verifique a câmera e tente novamente.", requestMode);
       }
       return;
     }
@@ -1747,7 +1849,7 @@
         resumeListening();
         showMascotErrorMoment();
       } else {
-        await fail("Estou sem internet. Verifique a conexão do celular.");
+        await fail("Estou sem internet. Verifique a conexão do dispositivo.", requestMode);
       }
       return;
     }
@@ -1755,7 +1857,6 @@
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), CONFIG.apiTimeoutMs);
     const requestStartedAt = performance.now();
-    const requestMode = assistantMode;
     let responseStatus = null;
     let serverRequestId = null;
     let responseArrivedAt = null;
@@ -1856,7 +1957,7 @@
       });
       let msg = "Ocorreu um erro inesperado. Tente novamente.";
       if (error.name === "AbortError") msg = "A solicitação demorou demais. Tente novamente.";
-      else if (error instanceof TypeError) msg = "Não consegui alcançar o servidor da B.E.A. Verifique se o site está disponível e tente novamente.";
+      else if (error instanceof TypeError) msg = "Não consegui alcançar o servidor. Verifique se o site está disponível e tente novamente.";
       else if (code === "api_key_missing") msg = "A integração de IA não está configurada no servidor.";
       else if (code === "model_configuration_error") msg = "O modelo de IA não está configurado corretamente no servidor.";
       else if (code === "provider_authentication") msg = "A OpenRouter recusou a credencial configurada. O administrador precisa conferir a chave no Render.";
@@ -1871,15 +1972,15 @@
       else if (code === "request_too_large") msg = error.message;
       else if (code === "invalid_request" || code === "invalid_json" || code === "invalid_content_type") msg = error.message;
       else if (code === "invalid_server_response") msg = "O servidor respondeu em um formato inesperado. Tente novamente mais tarde.";
-      else if (error.status >= 500) msg = "O servidor da B.E.A. está com um problema temporário. Tente novamente mais tarde.";
+      else if (error.status >= 500) msg = "O servidor está com um problema temporário. Tente novamente mais tarde.";
       else if (error.status) msg = error.message;
       if (automatic) {
-        setState("error", "Falha na leitura");
+        setState("error", `Falha na leitura de ${requestAssistant.name}`);
         showStatus("Não consegui concluir a leitura automática. " + msg);
         resumeListening();
         showMascotErrorMoment();
       } else {
-        await fail(msg);
+        await fail(msg, requestMode);
       }
     } finally {
       clearTimeout(timeout);
@@ -1938,14 +2039,19 @@
   });
 
   /* ================= BOTÕES ================= */
+  setAssistantMode(assistantMode);
+
   startBtn.addEventListener("click", async () => {
+    const assistant = activeAssistant();
     startBtn.disabled = true;
     unlockAudio(); // precisa acontecer dentro do toque do usuário
-    setState("thinking", "Ativando…");
-    showStatus("Ativando câmera e microfone. Aceite as permissões se o celular pedir.");
+    setState("thinking", assistant.activationState);
+    showStatus(assistant.permissionRequest);
     systemOn = true;
+    activationPending = true;
 
     const cameraOk = await startCamera();
+    activationPending = false;
     keepAwake();
 
     startBtn.hidden = true;
@@ -1953,11 +2059,14 @@
     updateMicButton();
     hint.hidden = false;
 
-    if (cameraOk) {
-      await speak("Olá! Sou a Bia. Já estou ouvindo. Diga 'Bia' e faça seu pedido.");
-    } else {
-      await speak("Olá! Sou a Bia e já estou ouvindo. Estou sem câmera; a leitura automática do ambiente não está disponível.");
-    }
+    const activeMode = assistantMode;
+    const activeGreeting = activeAssistant(activeMode);
+    await speak(
+      cameraOk ? activeGreeting.greetingWithCamera : activeGreeting.greetingWithoutCamera,
+      null,
+      null,
+      activeMode
+    );
     if (cameraOk) scheduleEnvironmentScan(CONFIG.firstEnvironmentScanMs);
   });
 
@@ -1968,12 +2077,11 @@
     if (micMuted) {
       stopRecognition();
       if (!busy) setState("muted", "Microfone silenciado");
-      showStatus("Microfone silenciado. A Bia não ouvirá comandos até você reativá-lo.");
+      showStatus(activeAssistant().mutedStatus);
       return;
     }
-    showStatus(busy
-      ? "Microfone reativado. A escuta retornará quando a Bia terminar de responder."
-      : "Microfone reativado. Diga “Bia” e faça seu pedido.");
+    const assistant = activeAssistant();
+    showStatus(busy ? assistant.reactivatedBusy : assistant.reactivatedStatus);
     if (!busy) resumeListening();
   });
 
