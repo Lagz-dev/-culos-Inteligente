@@ -51,6 +51,14 @@ O log do backend com a mesma ID registra `validation_ms`, `provider_http_ms`, `b
 
 Os logs registram somente ID, etapa, status e durações; não incluem perguntas, respostas, imagens nem credenciais. Use a ID para correlacionar o console do navegador aos logs do servidor.
 
+## Mascote BIA
+
+A interface contém um **placeholder técnico**, não a arte oficial final. Ele é um SVG inline organizado em grupos (`bia-head`, `bia-torso`, `bia-arms` e partes faciais) para permitir animações independentes sem dependências adicionais. Essa condição é indicada no texto acessível da mascote, sem um aviso visual adicional.
+
+Ao preparar a arte definitiva, forneça um SVG original com camadas nomeadas para cabeça/cabelo, tronco, braços/mãos, olhos, sobrancelhas e boca (formas fechada e aberta). Substitua os desenhos dentro de `#biaMascot` preservando seu ID, os IDs/classes internos usados pelos seletores de animação, a viewBox e a indicação acessível de que a ilustração representa a BIA. Não incorpore uma imagem raster única se a animação facial e corporal continuar necessária.
+
+As expressões seguem os estados reais do app. A boca começa e para com os eventos da `speechSynthesis`; se o navegador enviar limites de palavras, eles selecionam poses visuais simples a partir do início da palavra. Sem esses eventos, há apenas um movimento suave enquanto a fala está efetivamente ativa. Isso não é sincronização fonética. Piscadas e olhares usam temporizadores espaçados e variáveis, gestos acontecem somente durante a fala, e as animações respeitam `prefers-reduced-motion` e a visibilidade da página.
+
 ## Hospedagem no Render
 
 Crie um **Web Service** conectado ao repositório e configure:

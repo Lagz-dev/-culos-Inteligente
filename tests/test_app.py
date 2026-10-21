@@ -66,6 +66,40 @@ class ChatRouteTests(unittest.TestCase):
         self.assertIn(b"<title>B.E.A", response.data)
         response.close()
 
+    def test_provided_logo_is_served_from_static_assets(self):
+        response = self.client.get("/static/bia-logo.jpg")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.content_type.startswith("image/jpeg"))
+        self.assertGreater(len(response.data), 0)
+
+    def test_mascot_placeholder_has_animation_layers_and_speech_hooks(self):
+        response = self.client.get("/")
+        html = response.get_data(as_text=True)
+
+        self.assertIn('id="biaMascot"', html)
+        self.assertIn("Placeholder técnico da mascote BIA", html)
+        for layer_id in ("bia-head", "bia-torso", "bia-arms"):
+            with self.subTest(layer_id=layer_id):
+                self.assertIn(f'id="{layer_id}"', html)
+        for state in ("idle", "listening", "thinking", "speaking", "happy", "observing", "error"):
+            with self.subTest(state=state):
+                self.assertIn(f'data-mascot-state="{state}"', html)
+        self.assertIn("u.onstart =", html)
+        self.assertIn("u.onboundary =", html)
+        self.assertIn("u.onend =", html)
+        self.assertIn("u.onerror =", html)
+        self.assertIn('speechSynthesis.cancel()', html)
+        self.assertIn('setMascotState("speaking")', html)
+        self.assertIn("done(true)", html)
+        self.assertIn("speechBoundaryTimer = setTimeout", html)
+        self.assertIn("randomDelay(2600, 5700)", html)
+        self.assertIn('mascot.dataset.mouth = mouth', html)
+        self.assertIn('data-mouth="wide"', html)
+        self.assertIn('data-mouth="round"', html)
+        self.assertIn('mascot.dataset.mascotState !== "speaking"', html)
+        self.assertIn("prefers-reduced-motion: reduce", html)
+
     def test_hands_free_voice_and_periodic_vision_controls_are_present(self):
         response = self.client.get("/")
         html = response.get_data(as_text=True)

@@ -20,6 +20,7 @@
     --color-lavender-soft: #F0EFF6;
     --color-peach: #F3BB84;
     --color-peach-deep: #85552F;
+    --color-peach-vivid: #E77F32;
     --color-peach-soft: #FFF1E2;
     --color-cream: #F7F4F0;
     --color-surface: #FFFEFC;
@@ -75,6 +76,7 @@
     grid-template-areas:
       "header header"
       "video indicator"
+      "video mascot"
       "video status"
       "video hint"
       "video controls";
@@ -85,6 +87,20 @@
   }
 
   .header { grid-area: header; text-align: center; padding-bottom: 8px; }
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(10px, 2.5vw, 18px);
+  }
+  .brand-logo {
+    display: block;
+    width: clamp(116px, 15vw, 156px);
+    max-width: 48%;
+    height: auto;
+    flex: 0 1 auto;
+    object-fit: contain;
+  }
   h1 {
     color: var(--color-ink);
     font-size: clamp(34px, 6vw, 48px);
@@ -112,7 +128,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--color-peach);
+    background: var(--color-peach-vivid);
   }
 
   .video-wrapper {
@@ -166,7 +182,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--color-peach);
+    background: var(--color-peach-vivid);
     animation: breathe 1.8s ease-in-out infinite;
   }
 
@@ -240,6 +256,91 @@
   body[data-state="speaking"] .core { display: none; }
   body[data-state="speaking"] .bars { display: flex; }
   body[data-state="error"] .core { background: var(--color-error); box-shadow: 0 0 0 8px var(--color-error-soft); }
+
+  .mascot-stage {
+    grid-area: mascot;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 148px;
+    pointer-events: none;
+  }
+  .mascot-illustration {
+    display: block;
+    flex: 0 1 auto;
+    width: clamp(128px, 16vw, 156px);
+    max-width: 54%;
+    height: auto;
+    overflow: visible;
+    filter: drop-shadow(0 5px 5px rgba(55, 53, 68, .08));
+  }
+  .mascot-skin { fill: #F2D2B7; }
+  .mascot-hair { fill: #E9BE68; }
+  .mascot-shirt { fill: var(--color-lavender); }
+  .mascot-ink { fill: var(--color-ink); }
+  .mascot-highlight { fill: var(--color-surface); }
+  .mascot-accent { fill: var(--color-peach); }
+  .mascot-blush { fill: #EBAF9F; opacity: .32; }
+  .mascot-arm-left,
+  .mascot-arm-right,
+  .mascot-head,
+  .mascot-torso,
+  .mascot-eyes,
+  .mascot-brow,
+  .mascot-mouth-open,
+  .mascot-mouth-smile,
+  .mascot-mouth-closed {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .mascot-torso,
+  .mascot-head,
+  .mascot-pupils,
+  .mascot-eyes { transition: transform .4s cubic-bezier(.2,.75,.25,1); }
+  .mascot-torso { animation: mascot-breathe 4.6s ease-in-out infinite; }
+  .mascot-eyes.is-blinking { animation: mascot-blink 145ms ease-in-out; }
+  .mascot-brow { transition: transform .3s cubic-bezier(.2,.75,.25,1); }
+  .mascot-mouth-smile { display: inline; }
+  .mascot-mouth-open,
+  .mascot-mouth-wide,
+  .mascot-mouth-round,
+  .mascot-mouth-closed { display: none; }
+  .mascot-arm-left,
+  .mascot-arm-right { transform-box: fill-box; transform-origin: center 12%; transition: transform .45s cubic-bezier(.2,.75,.25,1); }
+  #biaMascot[data-gaze="left"] .mascot-pupils { transform: translateX(-1.6px); }
+  #biaMascot[data-gaze="right"] .mascot-pupils { transform: translateX(1.6px); }
+  #biaMascot[data-mascot-state="listening"] .mascot-head { transform: rotate(-3deg) translateY(-1px); }
+  #biaMascot[data-mascot-state="listening"] .mascot-brow-left { transform: translateY(-2px) rotate(-4deg); }
+  #biaMascot[data-mascot-state="listening"] .mascot-brow-right { transform: translateY(-2px) rotate(4deg); }
+  #biaMascot[data-mascot-state="thinking"] .mascot-head { transform: rotate(-4deg) translateY(-1px); }
+  #biaMascot[data-mascot-state="thinking"] .mascot-brow-left { transform: translateY(-1px) rotate(5deg); }
+  #biaMascot[data-mascot-state="thinking"] .mascot-brow-right { transform: translateY(-3px) rotate(-6deg); }
+  #biaMascot[data-mascot-state="observing"] .mascot-head { transform: rotate(2deg); }
+  #biaMascot[data-mascot-state="observing"] .mascot-brow { transform: translateY(-2px); }
+  #biaMascot[data-mascot-state="speaking"] .mascot-mouth-smile { display: none; }
+  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="false"] .mascot-mouth-open {
+    display: inline;
+    animation: mascot-mouth 680ms ease-in-out infinite alternate;
+  }
+  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"] .mascot-mouth-closed { display: inline; }
+  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="open"] .mascot-mouth-closed,
+  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="wide"] .mascot-mouth-closed,
+  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="round"] .mascot-mouth-closed { display: none; }
+  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="open"] .mascot-mouth-open { display: inline; }
+  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="wide"] .mascot-mouth-wide { display: inline; }
+  #biaMascot[data-mascot-state="speaking"][data-speech-boundaries="true"][data-mouth="round"] .mascot-mouth-round { display: inline; }
+  #biaMascot.is-gesturing .mascot-head { transform: translateY(-1px) rotate(1deg); }
+  #biaMascot.is-gesturing .mascot-arm-right { transform: rotate(-8deg) translateY(-2px); }
+  #biaMascot.is-gesturing .mascot-arm-left { transform: rotate(5deg) translateY(-1px); }
+  #biaMascot[data-mascot-state="speaking"] .mascot-torso { animation-duration: 2.6s; }
+  #biaMascot[data-mascot-state="happy"] .mascot-brow { transform: translateY(-2px); }
+  #biaMascot[data-mascot-state="happy"] .mascot-mouth-smile { stroke-width: 3.5; }
+  #biaMascot[data-mascot-state="happy"] .mascot-head { transform: translateY(-2px); }
+  #biaMascot[data-mascot-state="error"] .mascot-brow-left { transform: rotate(6deg); }
+  #biaMascot[data-mascot-state="error"] .mascot-brow-right { transform: rotate(-6deg); }
+  #biaMascot[data-mascot-state="error"] .mascot-head { transform: rotate(-2deg); }
 
   #stateLabel {
     color: var(--accent);
@@ -329,6 +430,9 @@
   @keyframes ripple  { 0% { transform: scale(.55); opacity: .7; } 100% { transform: scale(1.3); opacity: 0; } }
   @keyframes breathe { 50% { transform: scale(1.12); } }
   @keyframes eq      { 0%, 100% { height: 8px; } 50% { height: 28px; } }
+  @keyframes mascot-breathe { 50% { transform: translateY(-1.5px) scale(1.005); } }
+  @keyframes mascot-blink { 50% { transform: scaleY(.08); } }
+  @keyframes mascot-mouth { to { transform: scaleY(.58) scaleX(1.1); } }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -337,6 +441,7 @@
       scroll-behavior: auto !important;
       transition-duration: .01ms !important;
     }
+    .mascot-torso { animation: none !important; }
   }
   @media (max-width: 760px) {
     body { align-items: flex-start; padding-right: 14px; padding-left: 14px; }
@@ -349,6 +454,7 @@
         "header"
         "video"
         "indicator"
+        "mascot"
         "status"
         "hint"
         "controls";
@@ -358,6 +464,8 @@
     .header { padding-bottom: 2px; }
     .video-wrapper { aspect-ratio: 4 / 3; }
     #status { min-height: 82px; }
+    .mascot-stage { min-height: 136px; }
+    .mascot-illustration { width: clamp(116px, 34vw, 140px); }
   }
   @media (max-height: 640px) and (min-width: 761px) {
     body { align-items: flex-start; }
@@ -371,7 +479,9 @@
 <main class="hud">
 
   <header class="header">
-    <h1>BIA</h1>
+    <div class="brand">
+      <img class="brand-logo" src="static/bia-logo.jpg" alt="Logo da B.E.A., com as letras bea em lavanda, azul claro e pêssego">
+    </div>
     <div class="subtitle">Assistente de visão · Acessibilidade</div>
   </header>
 
@@ -392,6 +502,56 @@
     </div>
     <div id="stateLabel">Sistema desligado</div>
   </div>
+
+  <figure
+    class="mascot-stage"
+    id="biaMascot"
+    data-mascot-state="idle"
+    data-speech-boundaries="false"
+    role="img"
+    aria-label="Placeholder técnico da mascote BIA; a arte final ainda será criada."
+  >
+    <svg class="mascot-illustration" viewBox="0 0 180 170" aria-hidden="true" focusable="false">
+      <ellipse cx="91" cy="158" rx="53" ry="7" fill="#373544" opacity=".08"/>
+      <g id="bia-arms">
+        <path class="mascot-shirt mascot-arm-left" d="M63 94c-12 1-19 8-23 20l-9 28c-2 6 1 11 6 13 5 2 10-1 12-6l12-25 13-8z"/>
+        <path class="mascot-shirt mascot-arm-right" d="M119 94c12 1 19 8 23 20l9 28c2 6-1 11-6 13-5 2-10-1-12-6l-12-25-13-8z"/>
+        <path class="mascot-skin" d="M32 141c-4 3-5 8-2 12 3 4 9 4 13 1l7-8-6-8z"/>
+        <path class="mascot-skin" d="M150 141c4 3 5 8 2 12-3 4-9 4-13 1l-7-8 6-8z"/>
+      </g>
+      <g id="bia-torso" class="mascot-torso">
+        <path class="mascot-shirt" d="M65 91c-12 2-19 9-22 22l-5 44c17 5 34 7 53 7s36-2 53-7l-5-44c-3-13-10-20-22-22l-11-5H76z"/>
+        <path d="M77 89c2 10 7 15 14 15s12-5 14-15l-6-5H83z" fill="#E7D9E8"/>
+        <path class="mascot-accent" d="m88 105 3 4 3-4 3 27-6 6-6-6z"/>
+      </g>
+      <g id="bia-head" class="mascot-head">
+        <circle class="mascot-hair" cx="124" cy="27" r="14"/>
+        <circle cx="124" cy="27" r="7" fill="#D5A94F"/>
+        <path class="mascot-hair" d="M59 48c0-22 14-36 33-36 20 0 33 14 33 36v25H59z"/>
+        <path class="mascot-skin" d="M62 49c0-19 12-31 30-31s30 12 30 31v21c0 20-13 34-30 34S62 90 62 70z"/>
+        <path class="mascot-hair" d="M58 55c-3-22 9-39 28-44 19-5 39 3 46 21-9-1-17-6-22-13-10 9-25 13-44 11l-7 27z"/>
+        <path class="mascot-blush" d="M66 78c4-4 10-4 14 0-3 4-10 5-14 0zm37 0c4-4 10-4 14 0-3 4-10 5-14 0z"/>
+        <g class="mascot-brow mascot-brow-left"><path d="M72 54c4-2.5 9-2.5 13 0" fill="none" stroke="#8A684D" stroke-width="1.8" stroke-linecap="round"/></g>
+        <g class="mascot-brow mascot-brow-right"><path d="M99 54c4-2.5 9-2.5 13 0" fill="none" stroke="#8A684D" stroke-width="1.8" stroke-linecap="round"/></g>
+        <g class="mascot-eyes">
+          <g class="mascot-pupils">
+            <ellipse class="mascot-ink" cx="80" cy="66" rx="6.4" ry="8.4"/>
+            <ellipse class="mascot-ink" cx="105" cy="66" rx="6.4" ry="8.4"/>
+            <circle class="mascot-highlight" cx="82" cy="63" r="2.1"/>
+            <circle class="mascot-highlight" cx="107" cy="63" r="2.1"/>
+            <circle class="mascot-highlight" cx="78" cy="68" r=".9"/>
+            <circle class="mascot-highlight" cx="103" cy="68" r=".9"/>
+          </g>
+        </g>
+        <path d="M91 72c-.8 3-1.4 5-1 6 .8 1 2.2 1 3 0" fill="none" stroke="#D8A887" stroke-width="1.6" stroke-linecap="round"/>
+        <path class="mascot-mouth-smile" d="M84 85c4 6 12 6 16 0" fill="none" stroke="#9E5860" stroke-width="2.7" stroke-linecap="round"/>
+        <path class="mascot-mouth-closed" d="M88 87h7" fill="none" stroke="#9E5860" stroke-width="2.5" stroke-linecap="round"/>
+        <ellipse class="mascot-mouth-open" cx="91.5" cy="87" rx="5.5" ry="4.5" fill="#9E5860"/>
+        <path class="mascot-mouth-wide" d="M85 85c4 2 9 2 13 0v5c-3 4-10 4-13 0z" fill="#9E5860"/>
+        <ellipse class="mascot-mouth-round" cx="91.5" cy="87" rx="3.3" ry="5.2" fill="#9E5860"/>
+      </g>
+    </svg>
+  </figure>
 
   <div id="status" role="status" aria-live="polite">
     Toque em “Ativar B.E.A.” para conceder as permissões e iniciar.
@@ -429,7 +589,17 @@
   /* ================= ELEMENTOS ================= */
   const $ = (id) => document.getElementById(id);
   const video = $("video"), statusEl = $("status"), stateLabel = $("stateLabel");
+  const mascot = $("biaMascot");
   const startBtn = $("startSystem"), muteMicBtn = $("muteMic"), hint = $("hint");
+  const MASCOT_APP_STATES = {
+    off: "idle",
+    muted: "idle",
+    listening: "listening",
+    thinking: "thinking",
+    speaking: "idle",
+    reconnecting: "idle",
+    error: "error"
+  };
 
   /* ================= ESTADO ================= */
   let stream = null, recognition = null, wakeLock = null;
@@ -440,10 +610,13 @@
   let recognitionRunning = false, recognitionStarting = false;
   let restartTimer = null;
   let environmentScanTimer = null;
+  const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let mascotBlinkTimer = null, mascotGazeTimer = null, mascotGestureTimer = null;
 
   function setState(state, label) {
     document.body.dataset.state = state;
     stateLabel.textContent = label;
+    if (MASCOT_APP_STATES[state]) setMascotState(MASCOT_APP_STATES[state]);
   }
   function showStatus(text) { statusEl.textContent = text; }
   function buzz(pattern) { try { navigator.vibrate && navigator.vibrate(pattern); } catch (e) {} }
@@ -475,6 +648,108 @@
   let voices = [];
   let speakToken = 0, keepAlive = null, watchdog = null, speechStartTimer = null;
   let activeSpeechResolve = null;
+  let mascotEmotionTimer = null, speechBoundaryTimer = null;
+
+  const randomDelay = (minimum, maximum) =>
+    Math.round(minimum + Math.random() * (maximum - minimum));
+
+  function scheduleMascotBlink() {
+    clearTimeout(mascotBlinkTimer);
+    const state = mascot.dataset.mascotState;
+    if (reducedMotionQuery.matches || document.hidden ||
+      !["idle", "listening", "thinking", "observing"].includes(state)) return;
+
+    mascotBlinkTimer = setTimeout(() => {
+      const eyes = mascot.querySelector(".mascot-eyes");
+      eyes.classList.remove("is-blinking");
+      void eyes.getBoundingClientRect();
+      eyes.classList.add("is-blinking");
+      setTimeout(() => eyes.classList.remove("is-blinking"), 180);
+
+      if (Math.random() < 0.12) {
+        mascotBlinkTimer = setTimeout(() => {
+          eyes.classList.remove("is-blinking");
+          void eyes.getBoundingClientRect();
+          eyes.classList.add("is-blinking");
+          setTimeout(() => eyes.classList.remove("is-blinking"), 180);
+          scheduleMascotBlink();
+        }, 190);
+      } else {
+        scheduleMascotBlink();
+      }
+    }, randomDelay(2600, 5700));
+  }
+
+  function scheduleMascotGaze() {
+    clearTimeout(mascotGazeTimer);
+    if (reducedMotionQuery.matches || document.hidden ||
+      mascot.dataset.mascotState !== "idle") return;
+
+    mascotGazeTimer = setTimeout(() => {
+      const gaze = Math.random() < 0.5 ? "left" : "right";
+      mascot.dataset.gaze = gaze;
+      setTimeout(() => {
+        if (mascot.dataset.mascotState === "idle") mascot.dataset.gaze = "center";
+      }, randomDelay(450, 900));
+      scheduleMascotGaze();
+    }, randomDelay(3200, 6800));
+  }
+
+  function scheduleMascotGesture() {
+    clearTimeout(mascotGestureTimer);
+    if (reducedMotionQuery.matches || document.hidden ||
+      mascot.dataset.mascotState !== "speaking") return;
+
+    mascotGestureTimer = setTimeout(() => {
+      mascot.classList.add("is-gesturing");
+      setTimeout(() => mascot.classList.remove("is-gesturing"), randomDelay(380, 620));
+      scheduleMascotGesture();
+    }, randomDelay(1200, 2600));
+  }
+
+  function updateMascotMotion() {
+    clearTimeout(mascotBlinkTimer);
+    clearTimeout(mascotGazeTimer);
+    clearTimeout(mascotGestureTimer);
+    mascot.querySelector(".mascot-eyes").classList.remove("is-blinking");
+    mascot.dataset.gaze = "center";
+    mascot.classList.remove("is-gesturing");
+    scheduleMascotBlink();
+    scheduleMascotGaze();
+    scheduleMascotGesture();
+  }
+
+  function setMascotState(state) {
+    if (mascot.dataset.mascotState === state) return;
+    clearTimeout(mascotEmotionTimer);
+    mascotEmotionTimer = null;
+    clearTimeout(speechBoundaryTimer);
+    speechBoundaryTimer = null;
+    mascot.dataset.mascotState = state;
+    mascot.dataset.speechBoundaries = "false";
+    delete mascot.dataset.mouth;
+    updateMascotMotion();
+  }
+
+  function restoreMascotState() {
+    setMascotState(MASCOT_APP_STATES[document.body.dataset.state] || "idle");
+  }
+
+  function showMascotHappyMoment() {
+    setMascotState("happy");
+    mascot.classList.add("is-gesturing");
+    setTimeout(() => mascot.classList.remove("is-gesturing"), 520);
+    mascotEmotionTimer = setTimeout(() => {
+      if (mascot.dataset.mascotState === "happy") restoreMascotState();
+    }, 700);
+  }
+
+  if (typeof reducedMotionQuery.addEventListener === "function") {
+    reducedMotionQuery.addEventListener("change", updateMascotMotion);
+  } else {
+    reducedMotionQuery.addListener(updateMascotMotion);
+  }
+  updateMascotMotion();
 
   function loadVoices() { voices = window.speechSynthesis.getVoices() || []; }
   if (hasTTS) {
@@ -589,6 +864,7 @@
     speakToken++;
     clearInterval(keepAlive); clearTimeout(watchdog);
     clearTimeout(speechStartTimer);
+    if (mascot.dataset.mascotState === "speaking") setMascotState("idle");
     if (hasTTS) window.speechSynthesis.cancel();
     if (activeSpeechResolve) {
       const resolve = activeSpeechResolve;
@@ -598,7 +874,7 @@
   }
 
   // Fala o texto e, ao terminar, volta a escutar
-  function speak(text, onStart = null) {
+  function speak(text, onStart = null, onComplete = null) {
     return new Promise((resolve) => {
       showStatus("BEA: " + text);
       busy = true;
@@ -606,12 +882,14 @@
       stopSpeaking();
       const token = speakToken;
 
-      const done = () => {
+      const done = (endedNaturally = false) => {
         if (token !== speakToken) return;
         clearInterval(keepAlive); clearTimeout(watchdog);
         clearTimeout(speechStartTimer);
         if (activeSpeechResolve === resolve) activeSpeechResolve = null;
+        if ($("biaMascot").dataset.mascotState === "speaking") setMascotState("idle");
         resumeListening();
+        if (endedNaturally && started && typeof onComplete === "function") onComplete();
         resolve();
       };
 
@@ -636,19 +914,40 @@
         }
         u.onstart = () => {
           started = true;
+          setMascotState("speaking");
           if (typeof onStart === "function") onStart();
+        };
+        u.onboundary = (event) => {
+          if (token !== speakToken || (event.name && event.name !== "word") ||
+            !Number.isInteger(event.charIndex) || event.charIndex < 0) return;
+          const wordStart = chunks[i - 1].slice(event.charIndex).trimStart().charAt(0).toLocaleLowerCase();
+          const mouth = /[eéií]/.test(wordStart)
+            ? "wide"
+            : /[oóuúô]/.test(wordStart)
+              ? "round"
+              : /[aáãâ]/.test(wordStart)
+                ? "open"
+                : "closed";
+          mascot.dataset.speechBoundaries = "true";
+          mascot.dataset.mouth = mouth;
+          clearTimeout(speechBoundaryTimer);
+          speechBoundaryTimer = setTimeout(() => {
+            if (mascot.dataset.mascotState === "speaking") mascot.dataset.mouth = "closed";
+          }, Math.min(300, Math.max(110, (event.charLength || 3) * 35)));
         };
         u.onend = () => {
           if (token !== speakToken) return;
           if (i >= chunks.length) {
-            done();
+            done(true);
             return;
           }
+          setMascotState("idle");
           const pause = /[,;:]$/.test(chunks[i - 1]) ? 120 : 180;
           speechStartTimer = setTimeout(next, pause);
         };
         u.onerror = (e) => {
           if (token !== speakToken) return;
+          setMascotState(e.error === "canceled" || e.error === "interrupted" ? "idle" : "error");
           if (e.error === "canceled" || e.error === "interrupted") { done(); return; }
           next();
         };
@@ -885,11 +1184,15 @@
 
     let photo;
     const captureStartedAt = performance.now();
+    setMascotState("observing");
     try {
       photo = takePhoto();
     } catch {
       photo = null;
+    } finally {
+      setMascotState("thinking");
     }
+    if (photo) setMascotState("observing");
     console.info("[B.E.A. performance]", {
       request_id: requestId,
       stage: "capture_prepare",
@@ -1005,7 +1308,7 @@
           stage: "response_to_voice_start",
           duration_ms: Number((performance.now() - responseArrivedAt).toFixed(2))
         });
-      });
+      }, showMascotHappyMoment);
       if (!voiceStartObserved) {
         console.info("[B.E.A. performance]", {
           request_id: requestId,
@@ -1060,6 +1363,7 @@
     try { if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {}
   }
   document.addEventListener("visibilitychange", () => {
+    updateMascotMotion();
     if (document.visibilityState === "visible" && systemOn) {
       keepAwake();
       if (stream && !environmentScanTimer) scheduleEnvironmentScan();
@@ -1071,6 +1375,12 @@
     systemOn = false;
     clearTimeout(restartTimer);
     clearEnvironmentScan();
+    clearTimeout(mascotBlinkTimer);
+    clearTimeout(mascotGazeTimer);
+    clearTimeout(mascotGestureTimer);
+    clearTimeout(mascotEmotionTimer);
+    clearTimeout(speechBoundaryTimer);
+    mascot.classList.remove("is-gesturing");
     if (recognition) {
       try { recognition.abort(); } catch (e) {}
     }
