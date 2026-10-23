@@ -24,10 +24,13 @@ CHAT_RATE_LIMIT = 10
 CHAT_RATE_WINDOW_SECONDS = 60
 MAX_COMPLETION_TOKENS = 1600
 MAX_FALLBACK_MODELS = 3
+
 COMMON_SYSTEM_INSTRUCTIONS = (
-    "Fale em português do Brasil, com linguagem clara e natural. "
-    "Responda a solicitações simples de modo direto; em tarefas complexas, organize a explicação e inclua os detalhes necessários. "
-    "Seja conciso sem omitir informações importantes.",
+    "Fale em português do Brasil, com linguagem simples, natural e adequada para estudantes. "
+    "Responda de forma direta e breve, normalmente em uma a três frases. "
+    "Ao descrever imagens, mencione primeiro o que mais importa e evite detalhes desnecessários, "
+    "adjetivos excessivos e especulações sobre sentimentos ou intenções. "
+    "Se o usuário pedir mais detalhes, desenvolva a resposta.",
     "Use humor somente quando combinar com a situação. "
     "Em situações delicadas, priorize respeito, sensibilidade e clareza; ao explicar erros, não culpe o usuário.",
     "Ao descrever imagens, baseie-se somente no que foi realmente enviado e é observável. "
