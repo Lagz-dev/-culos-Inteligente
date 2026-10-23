@@ -129,23 +129,70 @@ class ChatRouteTests(unittest.TestCase):
         response.close()
 
         for voice_behavior in (
-            "const FEMALE_VOICE =",
-            "const MALE_VOICE =",
+            "const FEMALE_VOICE = /",
+            "const MALE_VOICE = /",
             "function portugueseVoices()",
+            "function voiceProfileScore(voice, mode)",
+            "function bestVoiceForMode(candidates, mode)",
             "function pickVoice(mode = assistantMode)",
-            "const masculineVoices = portuguese.filter((voice) => JARVIS_MALE_VOICE.test(voice.name));",
+            "const otherModeVoice = bestVoiceForMode(candidates, otherMode);",
+            "candidates.filter((voice) => voice !== selected)",
+            ".normalize(\"NFD\")",
+            "function loadVoices() { voices = window.speechSynthesis.getVoices() || []; }",
+            'window.speechSynthesis.addEventListener("voiceschanged", loadVoices);',
+            "function waitForVoices()",
             "function speak(text, onStart = null, onComplete = null, mode = assistantMode)",
             "const speechMode = mode;",
-            "voice = pickVoice(speechMode);",
+            "const voice = pickVoice(speechMode);",
             "u.pitch = speechMode === ASSISTANT_MODES.JARVIS ? 1 : 1.03;",
             "if (voice) u.voice = voice;",
             "async function processCommand(question, requireImage = false, automatic = false, mode = assistantMode)",
             "const requestMode = mode;",
             "assistant_mode: requestMode",
             "}, showMascotHappyMoment, requestMode);",
+            "speechStartTimer = setTimeout(next, 100);",
         ):
             with self.subTest(voice_behavior=voice_behavior):
                 self.assertIn(voice_behavior, html)
+
+        speak_start = html.index("function speak(text, onStart = null, onComplete = null, mode = assistantMode)")
+        speak_end = html.index("\n  /* ================= RECONHECIMENTO DE VOZ", speak_start)
+        speak_logic = html[speak_start:speak_end]
+        self.assertLess(speak_logic.index("const speechMode = mode;"), speak_logic.index("waitForVoices().then"))
+        self.assertLess(speak_logic.index("const voice = pickVoice(speechMode);"), speak_logic.index("window.speechSynthesis.speak(u);"))
+        self.assertIn("pickVoice(speechMode)", speak_logic)
+        self.assertNotIn("pickVoice(assistantMode)", speak_logic)
+
+    def test_voice_selection_prefers_brazilian_portuguese_and_separates_modes(self):
+        response = self.client.get("/")
+        html = response.get_data(as_text=True)
+        response.close()
+
+        self.assertIn('const brazilianPortuguese = voices.filter((v) => /^pt[-_]br$/i.test(v.lang));', html)
+        self.assertIn("return brazilianPortuguese.length", html)
+        self.assertIn("FEMALE_VOICE.test(description)", html)
+        self.assertIn("MALE_VOICE.test(description)", html)
+        self.assertIn("genderPreference + voiceScore(voice)", html)
+        self.assertIn("return [...candidates].sort(", html)
+        self.assertIn("if (!selected || candidates.length < 2) return selected;", html)
+        self.assertIn("return bestVoiceForMode(", html)
+        self.assertIn("candidates.filter((voice) => voice !== selected)", html)
+
+    def test_voice_list_can_load_after_initially_empty_result(self):
+        response = self.client.get("/")
+        html = response.get_data(as_text=True)
+        response.close()
+
+        load_logic_start = html.index("function loadVoices()")
+        load_logic_end = html.index("\n  function portugueseVoices()", load_logic_start)
+        load_logic = html[load_logic_start:load_logic_end]
+        self.assertIn("getVoices() || []", load_logic)
+        self.assertIn('"voiceschanged", loadVoices', load_logic)
+        self.assertIn("if (voices.length) return Promise.resolve(voices);", load_logic)
+        self.assertIn('window.speechSynthesis.addEventListener("voiceschanged", finish);', load_logic)
+        self.assertIn("const timer = setTimeout(finish, 1200);", load_logic)
+        self.assertIn("loadVoices();", load_logic)
+        self.assertIn("resolve(voices);", load_logic)
 
     def test_personality_context_is_server_owned_and_mode_is_sent_by_frontend(self):
         response = self.client.get("/")
