@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+DEFAULT_MODEL = "openrouter/free"
 MAX_IMAGE_BYTES = 6 * 1024 * 1024
 MAX_QUESTION_LENGTH = 5000
 MAX_REQUEST_BYTES = 8 * 1024 * 1024
